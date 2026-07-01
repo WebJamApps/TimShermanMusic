@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "*": ["./types/*"],"src/*":["./src/*"],"test/*":["./test/*"]
+    },
+    "target": "ES2015",
+    "module": "ESNext",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "jsx": "react-jsx",
+    "lib": ["es2018", "dom", "dom.iterable", "esnext"],
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "typeRoots": ["node_modules/@types", "./types"],
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "test", "types"],
+  "exclude": ["dist", "node_modules", "vite.config.ts"]
+}
