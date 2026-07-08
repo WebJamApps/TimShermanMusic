@@ -7,7 +7,26 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React, { useContext } from 'react';
 import { vi, expect, describe, it, beforeEach, afterEach } from 'vitest';
+import scc from 'socketcluster-client';
 import { GigList } from '../../src/App/GigList';
+
+const mockNext = vi.fn();
+
+vi.mock('socketcluster-client', () => {
+  return {
+    default: {
+      create: vi.fn(() => ({
+        transmit: vi.fn(),
+        receiver: vi.fn(() => ({
+          createConsumer: vi.fn(() => ({
+            next: mockNext,
+          })),
+        })),
+        disconnect: vi.fn(),
+      })),
+    },
+  };
+});
 import { DataContext, DataProvider, Igig } from '../../src/providers/Data.provider';
 
 const mockGigs: Igig[] = [
@@ -148,15 +167,15 @@ describe('DataProvider gig-fetching tests', () => {
   });
 
   it('fetches gigs and populates gigs state', async () => {
-    fetchSpy
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockGigs,
-      } as Response);
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    mockNext.mockResolvedValueOnce({
+      value: mockGigs,
+      done: true,
+    });
 
     const ConsumerComponent = () => {
       const { gigs } = useContext(DataContext);
@@ -180,21 +199,19 @@ describe('DataProvider gig-fetching tests', () => {
       expect(screen.getByText('3 gigs')).toBeInTheDocument();
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('/gig?artist=tim'));
+    expect(scc.create).toHaveBeenCalled();
   });
 
   it('handles gig fetch errors gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    fetchSpy
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      } as Response);
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const sccCreateSpy = vi.spyOn(scc, 'create').mockImplementationOnce(() => {
+      throw new Error('Socket creation failed');
+    });
 
     render(
       <DataProvider>
@@ -203,8 +220,9 @@ describe('DataProvider gig-fetching tests', () => {
     );
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch gigs:'), expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('Socket creation failed');
     });
     consoleSpy.mockRestore();
+    sccCreateSpy.mockRestore();
   });
 });

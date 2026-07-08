@@ -9,6 +9,9 @@ const testDir = fileURLToPath(new URL('./test', import.meta.url));
 const APP_ENV_KEYS = [
   'BackendUrl',
   'NODE_ENV',
+  'SCS_HOST',
+  'SCS_PORT',
+  'SOCKETCLUSTER_SECURE',
 ] as const;
 
 function replaceProcessEnv(env: Record<string, string>): Plugin {

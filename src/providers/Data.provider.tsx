@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useEffect, useState } from 'react';
+import fetchGigs from './fetchGigs';
 
 export interface Ipic {
   '_id'?: string;
@@ -32,6 +33,7 @@ export interface Igig {
   duration?: number;
   promoImageUrl?: string;
   artist?: string;
+  id?: number;
 }
 
 export const DataContext = createContext({
@@ -71,21 +73,7 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         console.error('Failed to fetch pics:', err);
       });
 
-    fetch(`${backendUrl}/gig?artist=tim`)
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`${res.status} ${res.statusText}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (Array.isArray(data)) {
-          setGigs(data as Igig[]);
-        }
-      })
-      .catch(err => {
-        console.error('Failed to fetch gigs:', err);
-      });
+    fetchGigs.getGigs(setGigs);
   }, []);
 
   return (
