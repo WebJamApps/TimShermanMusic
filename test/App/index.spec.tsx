@@ -115,7 +115,7 @@ describe('App & BookingForm', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText(/Sorry, we could not deliver your inquiry/i)).toBeInTheDocument();
-      expect(screen.getByText(/joshua.v.sherman@gmail.com/i)).toBeInTheDocument();
+      expect(screen.getByText(/timsherman75@gmail.com/i)).toBeInTheDocument();
     });
   });
 
