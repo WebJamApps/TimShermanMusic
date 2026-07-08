@@ -70,9 +70,10 @@ export function BookingForm() {
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // In production, process.env.BackendUrl is injected by vite.
+    // In dev, fall back to localhost. Never use localhost in production builds.
     const backendUrl =
-      (typeof process !== 'undefined' && process && process.env && process.env.BackendUrl) ||
-      'http://localhost:7000';
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
 
     try {
       const res = await fetch(`${backendUrl}/inquiry`, {
@@ -163,8 +164,8 @@ export function BookingForm() {
           <p className="error-text">{submitError}</p>
           <p className="error-fallback">
             Direct Booking Email:{' '}
-            <a href="mailto:joshua.v.sherman@gmail.com" className="email-link">
-              joshua.v.sherman@gmail.com
+            <a href="mailto:timsherman75@gmail.com" className="email-link">
+              timsherman75@gmail.com
             </a>
           </p>
         </div>
