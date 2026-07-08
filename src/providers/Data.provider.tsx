@@ -19,9 +19,26 @@ export interface Ipic {
   'updated_at'?: string;
 }
 
+export interface Igig {
+  _id?: string;
+  date?: string;
+  time?: string;
+  datetime?: string | null;
+  location?: string;
+  city?: string;
+  usState?: string;
+  venue: string;
+  tickets?: string;
+  duration?: number;
+  promoImageUrl?: string;
+  artist?: string;
+}
+
 export const DataContext = createContext({
   pics: null as Ipic[] | null,
   setPics: (_arg0: Ipic[] | null) => {},
+  gigs: null as Igig[] | null,
+  setGigs: (_arg0: Igig[] | null) => {},
 });
 
 declare const process: {
@@ -32,6 +49,7 @@ declare const process: {
 
 export function DataProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [pics, setPics] = useState<Ipic[] | null>(null);
+  const [gigs, setGigs] = useState<Igig[] | null>(null);
 
   useEffect(() => {
     const backendUrl =
@@ -52,11 +70,28 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
       .catch(err => {
         console.error('Failed to fetch pics:', err);
       });
+
+    fetch(`${backendUrl}/gig?artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`${res.status} ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setGigs(data as Igig[]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch gigs:', err);
+      });
   }, []);
 
   return (
-    <DataContext.Provider value={{ pics, setPics }}>
+    <DataContext.Provider value={{ pics, setPics, gigs, setGigs }}>
       {children}
     </DataContext.Provider>
   );
 }
+
