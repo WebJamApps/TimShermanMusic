@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useEffect, useState } from 'react';
+import fetchGigs from './fetchGigs';
 
 export interface Ipic {
   '_id'?: string;
@@ -19,9 +20,27 @@ export interface Ipic {
   'updated_at'?: string;
 }
 
+export interface Igig {
+  _id?: string;
+  date?: string;
+  time?: string;
+  datetime?: string | null;
+  location?: string;
+  city?: string;
+  usState?: string;
+  venue: string;
+  tickets?: string;
+  duration?: number;
+  promoImageUrl?: string;
+  artist?: string;
+  id?: number;
+}
+
 export const DataContext = createContext({
   pics: null as Ipic[] | null,
   setPics: (_arg0: Ipic[] | null) => {},
+  gigs: null as Igig[] | null,
+  setGigs: (_arg0: Igig[] | null) => {},
 });
 
 declare const process: {
@@ -32,6 +51,7 @@ declare const process: {
 
 export function DataProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [pics, setPics] = useState<Ipic[] | null>(null);
+  const [gigs, setGigs] = useState<Igig[] | null>(null);
 
   useEffect(() => {
     const backendUrl =
@@ -52,11 +72,14 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
       .catch(err => {
         console.error('Failed to fetch pics:', err);
       });
+
+    fetchGigs.getGigs(setGigs);
   }, []);
 
   return (
-    <DataContext.Provider value={{ pics, setPics }}>
+    <DataContext.Provider value={{ pics, setPics, gigs, setGigs }}>
       {children}
     </DataContext.Provider>
   );
 }
+

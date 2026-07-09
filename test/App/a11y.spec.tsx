@@ -60,7 +60,7 @@ describe('accessibility (axe)', () => {
 
   it('home page (header, slideshow, and booking form) has no axe violations', async () => {
     const { container } = render(
-      <DataContext.Provider value={{ pics: mockPics, setPics: () => {} }}>
+      <DataContext.Provider value={{ pics: mockPics, setPics: () => {}, gigs: null, setGigs: () => {} }}>
         <App />
       </DataContext.Provider>
     );
