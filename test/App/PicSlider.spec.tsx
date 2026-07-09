@@ -201,7 +201,7 @@ describe('picture slider component tests', () => {
   it('renders PicSlider utilizing DataContext', () => {
     const TestComponent = () => {
       return (
-        <DataContext.Provider value={{ pics: mockPics, setPics: () => {} }}>
+        <DataContext.Provider value={{ pics: mockPics, setPics: () => {}, gigs: null, setGigs: () => {} }}>
           <PicSlider />
         </DataContext.Provider>
       );

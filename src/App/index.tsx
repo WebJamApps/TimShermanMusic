@@ -4,6 +4,7 @@
  */
 
 import { BookingForm } from './BookingForm';
+import { GigList } from './GigList';
 import { PicSlider } from './PicSlider';
 
 export function App() {
@@ -17,8 +18,10 @@ export function App() {
         <div style={{ width: '100%', maxWidth: '600px' }}>
           <PicSlider />
         </div>
+        <GigList />
         <BookingForm />
       </main>
     </div>
   );
 }
+
