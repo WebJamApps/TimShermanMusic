@@ -127,3 +127,45 @@ export const deletePic = async (picId: string, token: string, callback?: () => v
     console.error('deletePic failed:', err);
   }
 };
+
+export const updateBio = async (
+  bioText: string,
+  token: string,
+  callback?: () => void,
+) => {
+  try {
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    // Check if bio already exists in the backend
+    const checkRes = await fetch(`${backendUrl}/book/one?type=bio&artist=tim`);
+    const bioExists = checkRes.ok;
+
+    const method = bioExists ? 'PUT' : 'POST';
+    const url = bioExists
+      ? `${backendUrl}/book/one?type=bio&artist=tim`
+      : `${backendUrl}/book`;
+
+    const body = bioExists
+      ? { comments: bioText }
+      : { title: 'Bio', type: 'bio', artist: 'tim', comments: bioText };
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
+    if (callback) callback();
+  } catch (err) {
+    console.error('updateBio failed:', err);
+  }
+};
