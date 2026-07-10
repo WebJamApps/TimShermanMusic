@@ -1,6 +1,6 @@
 {
   "name": "timshermanmusic",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tim Sherman Music — gigs, photos, and booking site",
   "main": "dist/index.html",
   "repository": {
@@ -56,6 +56,7 @@
     "@types/socketcluster-client": "^20.0.0",
     "@vitest/coverage-v8": "^4.1.7",
     "@vitest/eslint-plugin": "^1.6.18",
+    "axe-core": "^4.12.1",
     "eslint": "^10.4.0",
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-json": "^4.0.1",
@@ -67,7 +68,8 @@
     "globals": "^17.6.0",
     "jsdom": "^29.1.1",
     "typescript-eslint": "^8.60.0",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "vitest-axe": "^0.1.0"
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true
