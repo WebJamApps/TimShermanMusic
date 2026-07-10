@@ -13,6 +13,7 @@ import {
   createPic,
   updatePic,
   deletePic,
+  updateBio,
   IGigInput,
   IPicInput,
 } from '../lib/adminActions';
@@ -35,7 +36,7 @@ interface IAdminPanelProps {
   onRegisterTriggerEdit?: (trigger: (gig: any) => void) => void;
 }
 
-export type SubModalType = 'addGig' | 'editGig' | 'managePics' | 'addPic' | 'editPic' | null;
+export type SubModalType = 'addGig' | 'editGig' | 'managePics' | 'addPic' | 'editPic' | 'editBio' | null;
 
 const checkIsAdmin = (auth: any): boolean => {
   if (auth && auth.isAuthenticated && auth.user) {
@@ -91,6 +92,7 @@ interface IDashboardProps {
   setAdminActive: (active: boolean) => void;
   onAddGig: () => void;
   onManagePics: () => void;
+  onEditBio: () => void;
   onLogout: () => void;
 }
 
@@ -100,6 +102,7 @@ function Dashboard({
   setAdminActive,
   onAddGig,
   onManagePics,
+  onEditBio,
   onLogout,
 }: IDashboardProps): React.JSX.Element {
   return (
@@ -145,6 +148,20 @@ function Dashboard({
             onClick={onManagePics}
           >
             Manage Photos
+          </button>
+        </div>
+        <div className="admin-dash-card">
+          <span className="admin-dash-icon">📝</span>
+          <h4 className="admin-dash-title">Biography</h4>
+          <p className="admin-dash-desc">Edit Tim's public biography page content.</p>
+          <button
+            aria-label="Edit Biography"
+            type="button"
+            className="admin-btn primary"
+            style={{ width: '100%', padding: '0.5rem' }}
+            onClick={onEditBio}
+          >
+            Edit Bio
           </button>
         </div>
       </div>
@@ -456,6 +473,70 @@ function PicForm({ initialPic, onCancel, onSubmit }: IPicFormProps): React.JSX.E
   );
 }
 
+// Sub-component for Bio Form
+interface IBioFormProps {
+  initialBio: string;
+  onCancel: () => void;
+  onSubmit: (bioText: string) => void;
+}
+
+function BioForm({ initialBio, onCancel, onSubmit }: IBioFormProps): React.JSX.Element {
+  const [bioText, setBioText] = useState(initialBio);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onSubmit(bioText);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-form" data-testid="bio-form">
+      <div className="admin-field-group full-width">
+        <label htmlFor="bio-textarea" className="admin-label">
+          Biography Text
+        </label>
+        <textarea
+          id="bio-textarea"
+          className="admin-input"
+          style={{ minHeight: '240px', fontFamily: "'Inter', sans-serif", fontSize: '0.95rem', lineHeight: '1.5', resize: 'vertical' }}
+          value={bioText}
+          onChange={e => setBioText(e.target.value)}
+          placeholder="Write Tim's biography here... Use double newlines for separate paragraphs."
+          required
+          disabled={submitting}
+        />
+        <span className="admin-field-help">
+          Formatting tip: leave an empty line (double newline) to create a new paragraph.
+        </span>
+      </div>
+      <div className="admin-form-actions">
+        <button
+          aria-label="Cancel editing bio"
+          type="button"
+          className="admin-btn secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          aria-label="Save biography"
+          type="submit"
+          className="admin-btn primary"
+          disabled={submitting}
+        >
+          {submitting ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // Helper handlers for submit operations, extracted to keep component complexity low.
 const handleAdminGigSubmit = async (
   activeSubModal: SubModalType,
@@ -517,6 +598,7 @@ interface IModalRendererProps {
   editingPic: any;
   auth: any;
   pics: any[] | null;
+  bio: string | null | undefined;
   adminActive: boolean;
   setAdminActive: (active: boolean) => void;
   loginWithGoogle: () => void;
@@ -524,6 +606,7 @@ interface IModalRendererProps {
   setEditingPic: (val: any) => void;
   handleGigSubmit: (data: IGigInput) => void;
   handlePicSubmit: (data: IPicInput) => void;
+  handleBioSubmit: (bioText: string) => void;
   handleDeletePic: (id: string) => void;
   handleLogout: () => void;
   isAdmin: boolean;
@@ -586,6 +669,18 @@ function getModalContent(props: IModalRendererProps): {
         ),
         isWide: false,
       };
+    case 'editBio':
+      return {
+        modalTitle: 'Edit Biography',
+        bodyContent: (
+          <BioForm
+            initialBio={props.bio || ''}
+            onCancel={() => props.setActiveSubModal(null)}
+            onSubmit={props.handleBioSubmit}
+          />
+        ),
+        isWide: false,
+      };
     default:
       return {
         modalTitle: 'Admin Dashboard',
@@ -596,6 +691,7 @@ function getModalContent(props: IModalRendererProps): {
             setAdminActive={props.setAdminActive}
             onAddGig={() => props.setActiveSubModal('addGig')}
             onManagePics={() => props.setActiveSubModal('managePics')}
+            onEditBio={() => props.setActiveSubModal('editBio')}
             onLogout={props.handleLogout}
           />
         ),
@@ -612,7 +708,7 @@ export function AdminPanel({
   onRegisterTriggerEdit,
 }: IAdminPanelProps): React.JSX.Element {
   const { auth, loginWithGoogle, logout } = useContext(AuthContext);
-  const { pics, setPics, setGigs } = useContext(DataContext);
+  const { pics, setPics, setGigs, bio, setBio } = useContext(DataContext);
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeSubModal, setActiveSubModal] = useState<SubModalType>(null);
@@ -658,6 +754,27 @@ export function AdminPanel({
       .catch(err => console.error(err));
   };
 
+  const refreshBio = () => {
+    const backendUrl = process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+    fetch(`${backendUrl}/book/one?type=bio&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          if (setBio) setBio('');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && typeof data.comments === 'string') {
+          if (setBio) setBio(data.comments);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (setBio) setBio('');
+      });
+  };
+
   const handleLogout = () => {
     logout();
     setAdminActive(false);
@@ -690,6 +807,7 @@ export function AdminPanel({
     editingPic,
     auth,
     pics,
+    bio,
     adminActive,
     setAdminActive,
     loginWithGoogle,
@@ -727,6 +845,12 @@ export function AdminPanel({
           setEditingPic(null);
         }
       );
+    },
+    handleBioSubmit: async (bioText: string) => {
+      await updateBio(bioText, auth.token, () => {
+        refreshBio();
+        setActiveSubModal(null);
+      });
     },
   });
 
