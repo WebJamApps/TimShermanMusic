@@ -12,7 +12,9 @@ const APP_ENV_KEYS = [
   'SCS_HOST',
   'SCS_PORT',
   'SOCKETCLUSTER_SECURE',
+  'GoogleClientId',
 ] as const;
+
 
 function replaceProcessEnv(env: Record<string, string>): Plugin {
   return {
