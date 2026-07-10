@@ -7,7 +7,13 @@ import { useContext } from 'react';
 import { DataContext, Igig } from '../../providers/Data.provider';
 import './gig-list.css';
 
-export function GigList() {
+interface IGigListProps {
+  adminActive?: boolean;
+  onEditGig?: (gig: Igig) => void;
+  onDeleteGig?: (gigId: string) => void;
+}
+
+export function GigList({ adminActive, onEditGig, onDeleteGig }: IGigListProps) {
   const { gigs } = useContext(DataContext);
 
   // Helper to format date nicely
@@ -135,6 +141,26 @@ export function GigList() {
               <div className="gig-full-date">
                 {formatDate(gig.datetime) || gig.date}
               </div>
+              {adminActive && (
+                <div className="admin-gig-actions">
+                  <button
+                    type="button"
+                    className="admin-inline-btn"
+                    onClick={() => onEditGig?.(gig)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-inline-btn delete"
+                    onClick={() => {
+                      if (gig._id) onDeleteGig?.(gig._id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
             <div className="gig-actions">
               {renderTickets(gig.tickets)}
