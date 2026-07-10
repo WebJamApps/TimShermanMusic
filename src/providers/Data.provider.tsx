@@ -36,11 +36,22 @@ export interface Igig {
   id?: number;
 }
 
-export const DataContext = createContext({
-  pics: null as Ipic[] | null,
-  setPics: (_arg0: Ipic[] | null) => {},
-  gigs: null as Igig[] | null,
-  setGigs: (_arg0: Igig[] | null) => {},
+export interface IDataContext {
+  pics: Ipic[] | null;
+  setPics: (_arg0: Ipic[] | null) => void;
+  gigs: Igig[] | null;
+  setGigs: (_arg0: Igig[] | null) => void;
+  bio?: string | null;
+  setBio?: (_arg0: string | null) => void;
+}
+
+export const DataContext = createContext<IDataContext>({
+  pics: null,
+  setPics: () => {},
+  gigs: null,
+  setGigs: () => {},
+  bio: null,
+  setBio: () => {},
 });
 
 declare const process: {
@@ -52,6 +63,7 @@ declare const process: {
 export function DataProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [pics, setPics] = useState<Ipic[] | null>(null);
   const [gigs, setGigs] = useState<Igig[] | null>(null);
+  const [bio, setBio] = useState<string | null>(null);
 
   useEffect(() => {
     const backendUrl =
@@ -73,11 +85,29 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         console.error('Failed to fetch pics:', err);
       });
 
+    fetch(`${backendUrl}/book/one?type=bio&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          setBio('');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && typeof data.comments === 'string') {
+          setBio(data.comments);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch bio:', err);
+        setBio('');
+      });
+
     fetchGigs.getGigs(setGigs);
   }, []);
 
   return (
-    <DataContext.Provider value={{ pics, setPics, gigs, setGigs }}>
+    <DataContext.Provider value={{ pics, setPics, gigs, setGigs, bio, setBio }}>
       {children}
     </DataContext.Provider>
   );

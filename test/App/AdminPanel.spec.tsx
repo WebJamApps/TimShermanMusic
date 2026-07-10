@@ -18,6 +18,7 @@ vi.mock('../../src/lib/adminActions', () => ({
   createPic: vi.fn((pic, token, cb) => cb && cb()),
   updatePic: vi.fn((pic, token, cb) => cb && cb()),
   deletePic: vi.fn((id, token, cb) => cb && cb()),
+  updateBio: vi.fn((bio, token, cb) => cb && cb()),
 }));
 
 const mockLoginWithGoogle = vi.fn();
@@ -256,5 +257,80 @@ describe('AdminPanel Dashboard component', () => {
 
     expect(mockLogout).toHaveBeenCalled();
     expect(mockSetAdminActive).toHaveBeenCalledWith(false);
+  });
+
+  it('opens BioForm to edit and submit bio content', () => {
+    const dataValWithBio = {
+      ...defaultDataMock,
+      bio: 'Original bio content',
+      setBio: vi.fn(),
+    };
+    renderAdminPanel(adminAuthMock, dataValWithBio as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Biography' }));
+    expect(screen.getByText('Edit Biography')).toBeInTheDocument();
+
+    const textarea = screen.getByLabelText('Biography Text');
+    expect(textarea).toHaveValue('Original bio content');
+
+    fireEvent.change(textarea, { target: { value: 'This is the newly updated bio!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save biography' }));
+  });
+
+  it('cancels the bio editing form and returns to dashboard', () => {
+    const dataValWithBio = {
+      ...defaultDataMock,
+      bio: 'Original bio content',
+      setBio: vi.fn(),
+    };
+    renderAdminPanel(adminAuthMock, dataValWithBio as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Biography' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing bio' }));
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  it('closes modal when backdrop is clicked', () => {
+    renderAdminPanel(adminAuthMock);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+
+    const backdrop = screen.getByLabelText('Close admin modal backdrop');
+    fireEvent.click(backdrop);
+    expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('closes modal when Escape key is pressed on the backdrop', () => {
+    renderAdminPanel(adminAuthMock);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+
+    const backdrop = screen.getByLabelText('Close admin modal backdrop');
+    fireEvent.keyDown(backdrop, { key: 'Escape' });
+    expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('does not close modal when Escape key is pressed with other key', () => {
+    renderAdminPanel(adminAuthMock);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+
+    const backdrop = screen.getByLabelText('Close admin modal backdrop');
+    fireEvent.keyDown(backdrop, { key: 'Enter' });
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  it('stops event propagation on dialog panel clicks', () => {
+    renderAdminPanel(adminAuthMock);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+
+    const panel = screen.getByLabelText('Admin control dialog panel');
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(clickEvent, 'stopPropagation');
+
+    fireEvent(panel, clickEvent);
+    expect(spy).toHaveBeenCalled();
   });
 });

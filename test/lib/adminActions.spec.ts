@@ -11,6 +11,7 @@ import {
   createPic,
   updatePic,
   deletePic,
+  updateBio,
 } from '../../src/lib/adminActions';
 
 const mockTransmit = vi.fn();
@@ -174,5 +175,93 @@ describe('adminActions SocketCluster transmitters', () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('deletePic failed:', expect.any(Error));
     consoleErrorSpy.mockRestore();
+  });
+
+  describe('updateBio action', () => {
+    let fetchSpy: any;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(globalThis, 'fetch');
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('performs POST /book when bio does not exist yet', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'new-bio-id' }),
+      } as Response);
+
+      await updateBio('This is Tim biography text', 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book/one?type=bio&artist=tim');
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+        body: JSON.stringify({
+          title: 'Bio',
+          type: 'bio',
+          artist: 'tim',
+          comments: 'This is Tim biography text',
+        }),
+      });
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('performs PUT /book/one when bio already exists', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'existing-id' }),
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: 1 }),
+      } as Response);
+
+      await updateBio('Updated biography', 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book/one?type=bio&artist=tim');
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book/one?type=bio&artist=tim', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+        body: JSON.stringify({
+          comments: 'Updated biography',
+        }),
+      });
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('logs error if fetch fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchSpy.mockRejectedValueOnce(new Error('Fetch failed'));
+
+      await updateBio('Biography', 'mock-token');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updateBio failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
   });
 });

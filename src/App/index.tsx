@@ -9,6 +9,7 @@ import { BookingForm } from './BookingForm';
 import { GigList } from './GigList';
 import { PicSlider } from './PicSlider';
 import { AdminPanel } from './AdminPanel';
+import { BioSection } from './BioSection';
 import { deleteGig } from '../lib/adminActions';
 import { AuthContext } from '../providers/Auth.provider';
 import { DataContext } from '../providers/Data.provider';
@@ -48,6 +49,7 @@ export function App() {
         <div style={{ width: '100%', maxWidth: '600px' }}>
           <PicSlider />
         </div>
+        <BioSection />
         <GigList
           adminActive={adminActive}
           onEditGig={gig => triggerEditGigRef.current?.(gig)}
