@@ -1,0 +1,51 @@
+/**
+ * @file socketClusterMessages.tsx
+ * @description SocketCluster client communication and message handlers.
+ */
+
+import scc from 'socketcluster-client';
+
+const validateData = (
+  receiver: IteratorResult<unknown[]>,
+  setFunc: (_arg0: unknown[] | null) => void,
+) => {
+  let dataArr = null;
+  if (Array.isArray(receiver.value)) {
+    dataArr = receiver.value.map(
+      (g: Record<string, unknown>, i: number) => ({ ...g, id: i }),
+    );
+  }
+  setFunc(dataArr);
+};
+
+const listenForData = (
+  socket: scc.AGClientSocket,
+  message: string,
+  setFunc: (_arg0: unknown[] | null) => void,
+): boolean => {
+  (async () => {
+    const consumer = socket.receiver(message).createConsumer();
+    while (true) { // eslint-disable-line no-constant-condition
+      const receiver = await consumer.next();// eslint-disable-line no-await-in-loop
+      validateData(receiver, setFunc);
+      socket.disconnect();
+      /* istanbul ignore else */if (receiver.done) break;
+    }
+  })();
+  return true;
+};
+
+const initialMessage = (setFunc: (arg0: any[] | null) => void, message: string) => {
+  try {
+    const socket = scc.create({
+      hostname: process.env.SCS_HOST,
+      port: Number(process.env.SCS_PORT),
+      autoConnect: true,
+      secure: process.env.SOCKETCLUSTER_SECURE !== 'false',
+    });
+    socket.transmit('gigsForArtist', { artist: 'tim' });
+    return listenForData(socket, message, setFunc);
+  } catch (err) { console.error((err as Error).message); return false; }
+};
+
+export default { initialMessage, validateData };
