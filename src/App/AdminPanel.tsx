@@ -502,6 +502,7 @@ function BioForm({ initialBio, onCancel, onSubmit }: IBioFormProps): React.JSX.E
         </label>
         <textarea
           id="bio-textarea"
+          aria-label="Biography Text"
           className="admin-input"
           style={{ minHeight: '240px', fontFamily: "'Inter', sans-serif", fontSize: '0.95rem', lineHeight: '1.5', resize: 'vertical' }}
           value={bioText}
