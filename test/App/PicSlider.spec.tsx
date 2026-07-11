@@ -216,7 +216,24 @@ describe('DataProvider component tests', () => {
   let fetchSpy: any;
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch');
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url: any) => {
+      if (url.includes('/book?artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockPics,
+        } as Response);
+      }
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ comments: 'Tim biography' }],
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      } as Response);
+    });
   });
 
   afterEach(() => {
@@ -287,6 +304,136 @@ describe('DataProvider component tests', () => {
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalled();
     });
+    consoleSpy.mockRestore();
+  });
+
+  it('fetches bio on mount, handles empty list or non-ok response', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockPics,
+        } as Response);
+      }
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { bio } = useContext(DataContext);
+      return (
+        <div>
+          {bio !== null ? <div data-testid="bio-loaded">bio: {bio}</div> : <div data-testid="loading">loading</div>}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bio-loaded')).toBeInTheDocument();
+      expect(screen.getByText('bio:')).toBeInTheDocument();
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  it('fetches bio on mount, handles empty array or invalid comments type', async () => {
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockPics,
+        } as Response);
+      }
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { bio } = useContext(DataContext);
+      return (
+        <div>
+          {bio !== null ? <div data-testid="bio-loaded">bio: {bio}</div> : <div data-testid="loading">loading</div>}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bio-loaded')).toBeInTheDocument();
+      expect(screen.getByText('bio:')).toBeInTheDocument();
+    });
+  });
+
+  it('handles bio fetch network failure gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockPics,
+        } as Response);
+      }
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.reject(new Error('Bio fetch network error'));
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { bio } = useContext(DataContext);
+      return (
+        <div>
+          {bio !== null ? <div data-testid="bio-loaded">bio: {bio}</div> : <div data-testid="loading">loading</div>}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bio-loaded')).toBeInTheDocument();
+      expect(screen.getByText('bio:')).toBeInTheDocument();
+    });
+
+    expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 });

@@ -192,9 +192,8 @@ describe('adminActions SocketCluster transmitters', () => {
       const callback = vi.fn();
 
       fetchSpy.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
+        ok: true,
+        json: async () => [],
       } as Response);
 
       fetchSpy.mockResolvedValueOnce({
@@ -204,7 +203,7 @@ describe('adminActions SocketCluster transmitters', () => {
 
       await updateBio('This is Tim biography text', 'mock-token', callback);
 
-      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book/one?type=bio&artist=tim');
+      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book?type=bio&artist=tim');
       expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book', {
         method: 'POST',
         headers: {
@@ -228,7 +227,7 @@ describe('adminActions SocketCluster transmitters', () => {
 
       fetchSpy.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ _id: 'existing-id' }),
+        json: async () => [{ _id: 'existing-id' }],
       } as Response);
 
       fetchSpy.mockResolvedValueOnce({
@@ -238,7 +237,7 @@ describe('adminActions SocketCluster transmitters', () => {
 
       await updateBio('Updated biography', 'mock-token', callback);
 
-      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book/one?type=bio&artist=tim');
+      expect(fetchSpy).toHaveBeenNthCalledWith(1, 'http://localhost:7000/book?type=bio&artist=tim');
       expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book/one?type=bio&artist=tim', {
         method: 'PUT',
         headers: {
