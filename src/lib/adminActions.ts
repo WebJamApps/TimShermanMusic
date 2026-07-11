@@ -138,8 +138,12 @@ export const updateBio = async (
       process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
 
     // Check if bio already exists in the backend
-    const checkRes = await fetch(`${backendUrl}/book/one?type=bio&artist=tim`);
-    const bioExists = checkRes.ok;
+    const checkRes = await fetch(`${backendUrl}/book?type=bio&artist=tim`);
+    let bioExists = false;
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      bioExists = !!(Array.isArray(data) && data[0]);
+    }
 
     const method = bioExists ? 'PUT' : 'POST';
     const url = bioExists
