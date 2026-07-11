@@ -757,7 +757,7 @@ export function AdminPanel({
 
   const refreshBio = () => {
     const backendUrl = process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
-    fetch(`${backendUrl}/book/one?type=bio&artist=tim`)
+    fetch(`${backendUrl}/book?type=bio&artist=tim`)
       .then(res => {
         if (!res.ok) {
           if (setBio) setBio('');
@@ -766,8 +766,11 @@ export function AdminPanel({
         return res.json();
       })
       .then(data => {
-        if (data && typeof data.comments === 'string') {
-          if (setBio) setBio(data.comments);
+        const bioRecord = Array.isArray(data) ? data[0] : null;
+        if (bioRecord && typeof bioRecord.comments === 'string') {
+          if (setBio) setBio(bioRecord.comments);
+        } else {
+          if (setBio) setBio('');
         }
       })
       .catch(err => {
