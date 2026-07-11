@@ -85,7 +85,7 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         console.error('Failed to fetch pics:', err);
       });
 
-    fetch(`${backendUrl}/book/one?type=bio&artist=tim`)
+    fetch(`${backendUrl}/book?type=bio&artist=tim`)
       .then(res => {
         if (!res.ok) {
           setBio('');
@@ -94,8 +94,11 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         return res.json();
       })
       .then(data => {
-        if (data && typeof data.comments === 'string') {
-          setBio(data.comments);
+        const bioRecord = Array.isArray(data) ? data[0] : null;
+        if (bioRecord && typeof bioRecord.comments === 'string') {
+          setBio(bioRecord.comments);
+        } else {
+          setBio('');
         }
       })
       .catch(err => {
