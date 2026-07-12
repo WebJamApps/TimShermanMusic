@@ -41,7 +41,7 @@ export type SubModalType = 'addGig' | 'editGig' | 'managePics' | 'addPic' | 'edi
 const checkIsAdmin = (auth: any): boolean => {
   if (auth && auth.isAuthenticated && auth.user) {
     const { userType } = auth.user;
-    const adminRoles = ['Developer', 'JaM-admin', 'artist-admin'];
+    const adminRoles = ['Developer', 'JaM-admin', 'tim-admin'];
     return !!(userType && adminRoles.includes(userType));
   }
   return false;
