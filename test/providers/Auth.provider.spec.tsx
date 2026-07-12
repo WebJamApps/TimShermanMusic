@@ -27,7 +27,7 @@ describe('Auth.provider authentication context', () => {
 
   describe('setUserAuth', () => {
     it('sets state with fetched user details on success', async () => {
-      const mockUserObj = { email: 'tim@test.com', userType: 'artist-admin' };
+      const mockUserObj = { email: 'tim@test.com', userType: 'tim-admin' };
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockUserObj,
@@ -45,7 +45,7 @@ describe('Auth.provider authentication context', () => {
     });
 
     it('sets auth string correctly with setAuthString type', async () => {
-      const mockUserObj = { email: 'tim@test.com', userType: 'artist-admin' };
+      const mockUserObj = { email: 'tim@test.com', userType: 'tim-admin' };
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockUserObj,
@@ -200,11 +200,11 @@ describe('Auth.provider authentication context', () => {
         token,
         error: '',
         isAuthenticated: true,
-        user: { email: 'preset@test.com', userType: 'artist-admin' },
+        user: { email: 'preset@test.com', userType: 'tim-admin' },
       };
       localStorage.setItem('auth', JSON.stringify(storedAuth));
 
-      const mockUserProfile = { email: 'refreshed@test.com', userType: 'artist-admin' };
+      const mockUserProfile = { email: 'refreshed@test.com', userType: 'tim-admin' };
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         json: async () => mockUserProfile,
@@ -245,7 +245,7 @@ describe('Auth.provider authentication context', () => {
       });
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ email: 'oauth-user@test.com', userType: 'artist-admin' }),
+        json: async () => ({ email: 'oauth-user@test.com', userType: 'tim-admin' }),
       });
 
       const Consumer = () => {
