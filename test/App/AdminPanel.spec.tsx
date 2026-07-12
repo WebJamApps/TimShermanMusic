@@ -76,6 +76,39 @@ function renderAdminPanel(authVal = defaultAuthMock, dataVal = defaultDataMock, 
 describe('AdminPanel Dashboard component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  // Regression guard for the double-click login bug (issue #34): logging in
+  // used to require a second "Admin" click because the OAuth redirect reloads
+  // the SPA and resets isOpen to false. loginWithGoogle (Auth.provider) sets
+  // the tsm_open_admin flag right before redirecting; AdminPanel must consume
+  // it (open + clear) on the authenticated return, and must NOT auto-open on
+  // every ordinary page load for an already-logged-in admin.
+  describe('login-intent persistence across the OAuth redirect', () => {
+    it('opens the panel and clears the flag when returning authenticated with the flag set', () => {
+      localStorage.setItem('tsm_open_admin', '1');
+      renderAdminPanel(adminAuthMock);
+
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+      expect(localStorage.getItem('tsm_open_admin')).toBeNull();
+    });
+
+    it('does not auto-open the panel for an already-logged-in admin when no flag is set', () => {
+      renderAdminPanel(adminAuthMock);
+
+      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Open Admin Portal' })).toBeInTheDocument();
+    });
+
+    it('does not open the panel when the flag is set but the user is not authenticated', () => {
+      localStorage.setItem('tsm_open_admin', '1');
+      renderAdminPanel(defaultAuthMock);
+
+      expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+      // Flag stays put — not yet consumed, since the user isn't an admin yet.
+      expect(localStorage.getItem('tsm_open_admin')).toBe('1');
+    });
   });
 
   it('renders Admin trigger button initially', () => {

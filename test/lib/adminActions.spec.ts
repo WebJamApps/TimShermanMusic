@@ -102,79 +102,142 @@ describe('adminActions SocketCluster transmitters', () => {
     expect(callback).toHaveBeenCalled();
   });
 
-  it('createPic transmits newImage payload and disconnects after delay', async () => {
-    const callback = vi.fn();
-    const picData = {
-      url: 'https://example.com/pic.jpg',
-      title: 'Tim Playing Guitar',
-      comments: 'showCaption',
-    };
+  // Regression guard for the prod tenant leak (issue #34): a photo added on
+  // timshermanmusic.com appeared on joshandmariamusic.com because pic writes
+  // went over the SocketCluster `jamPics` collection instead of web-jam-back's
+  // `/book` REST collection. These tests assert every pic write now targets
+  // `/book` directly and is tagged `artist: 'tim'` (create), never the socket.
+  describe('pic REST actions (tenant isolation regression guard)', () => {
+    let fetchSpy: any;
 
-    const p = createPic(picData, 'mock-token', callback);
-    await vi.runAllTimersAsync();
-    await p;
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(globalThis, 'fetch');
+    });
 
-    expect(mockTransmit).toHaveBeenCalledWith('newImage', {
-      image: {
-        ...picData,
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('createPic performs POST /book tagged with artist: tim, never the socket', async () => {
+      const callback = vi.fn();
+      const picData = {
+        url: 'https://example.com/pic.jpg',
+        title: 'Tim Playing Guitar',
+        comments: 'showCaption',
+      };
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'new-pic-id' }),
+      } as Response);
+
+      await createPic(picData, 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:7000/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+        body: JSON.stringify({
+          title: picData.title,
+          url: picData.url,
+          comments: picData.comments,
+          type: 'TimShermanMusic-music',
+          artist: 'tim',
+        }),
+      });
+      expect(mockTransmit).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('createPic logs error and does not call callback when the request fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const callback = vi.fn();
+      fetchSpy.mockResolvedValueOnce({ ok: false, status: 500, statusText: 'Server Error' } as Response);
+
+      await createPic({ url: 'x', title: 'y', comments: '' }, 'mock-token', callback);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('createPic failed:', expect.any(Error));
+      expect(callback).not.toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('updatePic performs PUT /book/:id with the pic fields, never the socket', async () => {
+      const callback = vi.fn();
+      const picData = {
+        _id: 'pic-123',
+        url: 'https://example.com/pic-edit.jpg',
+        title: 'Tim Singing',
+        comments: '',
         type: 'TimShermanMusic-music',
-        artist: 'tim',
-      },
-      token: 'mock-token',
-    });
-    expect(mockDisconnect).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
+      };
 
-  it('updatePic transmits editImage payload and disconnects after delay', async () => {
-    const callback = vi.fn();
-    const picData = {
-      _id: 'pic-123',
-      url: 'https://example.com/pic-edit.jpg',
-      title: 'Tim Singing',
-      comments: '',
-      type: 'TimShermanMusic-music',
-    };
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: 1 }),
+      } as Response);
 
-    const p = updatePic(picData, 'mock-token', callback);
-    await vi.runAllTimersAsync();
-    await p;
+      await updatePic(picData, 'mock-token', callback);
 
-    expect(mockTransmit).toHaveBeenCalledWith('editImage', {
-      editPic: picData,
-      token: 'mock-token',
-    });
-    expect(mockDisconnect).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  it('deletePic transmits deleteImage payload and disconnects after delay', async () => {
-    const callback = vi.fn();
-
-    const p = deletePic('pic-123', 'mock-token', callback);
-    await vi.runAllTimersAsync();
-    await p;
-
-    expect(mockTransmit).toHaveBeenCalledWith('deleteImage', {
-      data: 'pic-123',
-      token: 'mock-token',
-    });
-    expect(mockDisconnect).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  it('catches transmission errors gracefully', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockTransmit.mockImplementationOnce(() => {
-      throw new Error('transmission failed');
+      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:7000/book/pic-123', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+        body: JSON.stringify({
+          title: picData.title,
+          url: picData.url,
+          comments: picData.comments,
+        }),
+      });
+      expect(mockTransmit).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalled();
     });
 
-    const p = deletePic('pic-123', 'mock-token');
-    await vi.runAllTimersAsync();
-    await p;
+    it('updatePic logs error when the request fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchSpy.mockRejectedValueOnce(new Error('network down'));
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('deletePic failed:', expect.any(Error));
-    consoleErrorSpy.mockRestore();
+      await updatePic(
+        { _id: 'pic-123', url: 'x', title: 'y', comments: '', type: 'TimShermanMusic-music' },
+        'mock-token',
+      );
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updatePic failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('deletePic performs DELETE /book/:id, never the socket', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: 1 }) } as Response);
+
+      await deletePic('pic-123', 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenCalledWith('http://localhost:7000/book/pic-123', {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+      });
+      expect(mockTransmit).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('deletePic logs error gracefully when the request fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchSpy.mockResolvedValueOnce({ ok: false, status: 404, statusText: 'Not Found' } as Response);
+
+      await deletePic('pic-123', 'mock-token');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('deletePic failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('updateBio action', () => {

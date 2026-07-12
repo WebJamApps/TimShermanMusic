@@ -83,17 +83,39 @@ export const deleteGig = async (gigId: string, token: string, callback?: () => v
   }
 };
 
+// Photo (slideshow pic) writes go over REST to web-jam-back's `/book` collection,
+// mirroring updateBio below — NOT the SocketCluster `jamPics` collection. That
+// socket path used to feed JaMmusic's (Josh & Maria's) private collection, which
+// caused a real prod tenant leak: a photo added on timshermanmusic.com appeared
+// on joshandmariamusic.com. Every write here MUST target `/book` and MUST carry
+// `artist: 'tim'` so it never lands in — or touches — another tenant's data.
 export const createPic = async (pic: IPicInput, token: string, callback?: () => void) => {
   try {
-    const socket = getSocket();
-    const image = {
-      ...pic,
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    const body = {
+      title: pic.title,
+      url: pic.url,
+      comments: pic.comments,
       type: 'TimShermanMusic-music',
       artist: 'tim',
     };
-    socket.transmit('newImage', { image, token });
-    await delay(1.5);
-    socket.disconnect();
+
+    const res = await fetch(`${backendUrl}/book`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
     if (callback) callback();
   } catch (err) {
     console.error('createPic failed:', err);
@@ -106,10 +128,29 @@ export const updatePic = async (
   callback?: () => void,
 ) => {
   try {
-    const socket = getSocket();
-    socket.transmit('editImage', { editPic, token });
-    await delay(1.5);
-    socket.disconnect();
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    const body = {
+      title: editPic.title,
+      url: editPic.url,
+      comments: editPic.comments,
+    };
+
+    const res = await fetch(`${backendUrl}/book/${editPic._id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
     if (callback) callback();
   } catch (err) {
     console.error('updatePic failed:', err);
@@ -118,10 +159,21 @@ export const updatePic = async (
 
 export const deletePic = async (picId: string, token: string, callback?: () => void) => {
   try {
-    const socket = getSocket();
-    socket.transmit('deleteImage', { data: picId, token });
-    await delay(1.5);
-    socket.disconnect();
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    const res = await fetch(`${backendUrl}/book/${picId}`, {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
     if (callback) callback();
   } catch (err) {
     console.error('deletePic failed:', err);
