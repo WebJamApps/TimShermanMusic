@@ -183,6 +183,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     // eslint-disable-next-line sonarjs/pseudo-random
     const state = Math.random().toString(36).substring(2);
     localStorage.setItem('oauth_state', state);
+    // Full-page redirect below reloads the SPA on return, resetting AdminPanel's
+    // isOpen state. Persist the intent to reopen the admin panel so AdminPanel
+    // can restore it once auth comes back (see tsm_open_admin in AdminPanel.tsx).
+    localStorage.setItem('tsm_open_admin', '1');
 
     const oauthUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
       `client_id=${encodeURIComponent(clientId)}&` +
