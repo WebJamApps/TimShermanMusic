@@ -30,7 +30,7 @@ const mockAuthAdmin = {
     isAuthenticated: true,
     token: 'admin-token',
     error: '',
-    user: { email: 'timsherman75@gmail.com', userType: 'artist-admin' },
+    user: { email: 'timsherman75@gmail.com', userType: 'tim-admin' },
   },
   setAuth: vi.fn(),
   loginWithGoogle: vi.fn(),

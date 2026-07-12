@@ -44,7 +44,7 @@ const adminAuthMock = {
     isAuthenticated: true,
     token: 'admin-token',
     error: '',
-    user: { email: 'timsherman75@gmail.com', userType: 'artist-admin' },
+    user: { email: 'timsherman75@gmail.com', userType: 'tim-admin' },
   },
   setAuth: vi.fn(),
   loginWithGoogle: mockLoginWithGoogle,
@@ -128,7 +128,7 @@ describe('AdminPanel Dashboard component', () => {
     expect(mockLoginWithGoogle).toHaveBeenCalled();
   });
 
-  it('renders Dashboard console when clicked and user is artist-admin', () => {
+  it('renders Dashboard console when clicked and user is tim-admin', () => {
     renderAdminPanel(adminAuthMock);
     const trigger = screen.getByRole('button', { name: 'Open Admin Portal' });
     fireEvent.click(trigger);
