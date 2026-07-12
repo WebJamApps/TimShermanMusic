@@ -718,6 +718,19 @@ export function AdminPanel({
 
   const isAdmin = checkIsAdmin(auth);
 
+  // Login is a full-page redirect (Auth.provider's loginWithGoogle), which
+  // reloads the SPA on return and resets isOpen to its default (false) — so the
+  // admin panel used to require a second "Admin" click after a successful login.
+  // loginWithGoogle sets this flag right before redirecting; once we come back
+  // authenticated, reopen the panel and clear the flag so it doesn't reopen on
+  // every later page load for an already-logged-in admin.
+  useEffect(() => {
+    if (isAdmin && localStorage.getItem('tsm_open_admin') === '1') {
+      localStorage.removeItem('tsm_open_admin');
+      setIsOpen(true);
+    }
+  }, [isAdmin]);
+
   const handleTriggerEditGig = (gig: any) => {
     setEditingGig(gig);
     setActiveSubModal('editGig');

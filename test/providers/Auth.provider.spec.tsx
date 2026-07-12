@@ -143,6 +143,32 @@ describe('Auth.provider authentication context', () => {
       (window as any).location = oldLocation;
     });
 
+    // Regression guard for the double-click login bug (issue #34): the Google
+    // redirect reloads the SPA, resetting AdminPanel's isOpen state. This flag
+    // is how AdminPanel knows to reopen itself once auth comes back.
+    it('persists tsm_open_admin intent flag before the OAuth redirect', () => {
+      const oldLocation = window.location;
+      delete (window as any).location;
+      window.location = { ...oldLocation, href: '' } as any;
+
+      const Consumer = () => {
+        const { loginWithGoogle } = useContext(AuthContext);
+        return <button onClick={loginWithGoogle}>Login</button>;
+      };
+
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+
+      expect(localStorage.getItem('tsm_open_admin')).toBeNull();
+      fireEvent.click(screen.getByText('Login'));
+      expect(localStorage.getItem('tsm_open_admin')).toBe('1');
+
+      (window as any).location = oldLocation;
+    });
+
     it('resets auth values on logout call', () => {
       const Consumer = () => {
         const { auth, setAuth, logout } = useContext(AuthContext);
