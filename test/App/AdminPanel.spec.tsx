@@ -4,8 +4,8 @@
  */
 
 import React, { act } from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AdminPanel } from '../../src/App/AdminPanel';
 import { AuthContext } from '../../src/providers/Auth.provider';
 import { DataContext } from '../../src/providers/Data.provider';
@@ -353,6 +353,41 @@ describe('AdminPanel Dashboard component', () => {
     const backdrop = screen.getByLabelText('Close admin modal backdrop');
     fireEvent.keyDown(backdrop, { key: 'Enter' });
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  // Regression guard for TimShermanMusic#40: refreshPics (fired after a photo
+  // delete/create/update) must scope its fetch to the photo type, or the bio
+  // record for artist:'tim' loads into `pics` and shows up as a deletable
+  // "photo" in Manage Photos.
+  describe('refreshPics scoping (TimShermanMusic#40)', () => {
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [],
+      }));
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('scopes the post-delete pics refresh to the photo type', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
+
+      renderAdminPanel(adminAuthMock);
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Manage Slideshow Photos' }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Delete photo Slide 1' }));
+      });
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('type=TimShermanMusic-music'));
+      });
+
+      confirmSpy.mockRestore();
+    });
   });
 
   it('stops event propagation on dialog panel clicks', () => {

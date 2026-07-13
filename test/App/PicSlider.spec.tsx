@@ -268,7 +268,51 @@ describe('DataProvider component tests', () => {
       expect(screen.getByText('3 pics')).toBeInTheDocument();
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('/book?artist=tim'));
+    // Regression guard for TimShermanMusic#40: the pics fetch must be scoped to
+    // the photo type, or the shared `books` collection's bio doc for artist:'tim'
+    // loads into `pics` and can be deleted from the admin Manage Photos list.
+    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('/book?artist=tim&type=TimShermanMusic-music'));
+  });
+
+  it('never lets a bio-typed doc leak into pics, because the fetch is type-scoped (TimShermanMusic#40)', async () => {
+    const bioDoc = {
+      _id: 'bio-1', type: 'bio', title: 'Bio', comments: 'Tim biography',
+      caption: '', thumbnail: undefined, link: '', modify: undefined,
+    };
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.resolve({ ok: true, json: async () => [bioDoc] } as Response);
+      }
+      if (url.includes('type=TimShermanMusic-music')) {
+        return Promise.resolve({ ok: true, json: async () => mockPics } as Response);
+      }
+      // Any pics call that is NOT type-scoped is the pre-fix bug: the shared
+      // `books` collection would return the bio doc mixed in with the photos.
+      return Promise.resolve({ ok: true, json: async () => [...mockPics, bioDoc] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { pics } = useContext(DataContext);
+      return (
+        <div>
+          {pics ? <div data-testid="pics-loaded">{pics.length} pics</div> : <div data-testid="loading">loading</div>}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pics-loaded')).toBeInTheDocument();
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('type=TimShermanMusic-music'));
+    // Exactly mockPics.length — the bio doc never made it into `pics`.
+    expect(screen.getByText(`${mockPics.length} pics`)).toBeInTheDocument();
   });
 
   it('handles fetch non-ok response gracefully', async () => {
