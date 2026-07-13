@@ -49,18 +49,24 @@
 /* On mobile/cell phones, make it tiny, subtle, icon-only lock */
 @media (max-width: 600px) {
   .admin-trigger-container {
-    bottom: 1rem;
-    right: 1rem;
+    bottom: 1.5rem;
+    right: 0.25rem; /* Pin directly to the right black margin */
   }
 
   .admin-trigger-btn {
-    padding: 0.5rem;
-    width: 32px;
-    height: 32px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     justify-content: center;
+    align-items: center;
     gap: 0;
-    opacity: 0.3;
+    opacity: 0.25;
+  }
+
+  .admin-trigger-btn svg {
+    width: 12px !important;
+    height: 12px !important;
   }
 
   .admin-trigger-btn .admin-trigger-text {
