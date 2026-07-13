@@ -19,6 +19,7 @@ vi.mock('../../src/lib/adminActions', () => ({
   updatePic: vi.fn((pic, token, cb) => cb && cb()),
   deletePic: vi.fn((id, token, cb) => cb && cb()),
   updateBio: vi.fn((bio, token, cb) => cb && cb()),
+  updateBranding: vi.fn((branding, token, cb) => cb && cb()),
 }));
 
 const mockLoginWithGoogle = vi.fn();
@@ -323,6 +324,138 @@ describe('AdminPanel Dashboard component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel editing bio' }));
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  it('opens BrandingForm to edit and submit page title/subtitle (TimShermanMusic#41)', async () => {
+    const { updateBranding } = await import('../../src/lib/adminActions');
+    const setBranding = vi.fn();
+    const dataValWithBranding = {
+      ...defaultDataMock,
+      branding: { title: 'Original Title', subtitle: 'Original Tagline' },
+      setBranding,
+    };
+    renderAdminPanel(adminAuthMock, dataValWithBranding as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+    expect(screen.getByText('Edit Site Branding')).toBeInTheDocument();
+
+    const titleInput = screen.getByLabelText('Page title');
+    const subtitleInput = screen.getByLabelText('Page subtitle');
+    expect(titleInput).toHaveValue('Original Title');
+    expect(subtitleInput).toHaveValue('Original Tagline');
+
+    fireEvent.change(titleInput, { target: { value: 'New Title' } });
+    fireEvent.change(subtitleInput, { target: { value: 'New Tagline' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save branding' }));
+
+    await waitFor(() => {
+      expect(updateBranding).toHaveBeenCalledWith(
+        { title: 'New Title', subtitle: 'New Tagline' },
+        'admin-token',
+        expect.any(Function),
+      );
+    });
+  });
+
+  it('strips HTML from branding fields before submit', async () => {
+    const { updateBranding } = await import('../../src/lib/adminActions');
+    renderAdminPanel(adminAuthMock, {
+      ...defaultDataMock,
+      branding: { title: null, subtitle: null },
+      setBranding: vi.fn(),
+    } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+
+    fireEvent.change(screen.getByLabelText('Page title'), {
+      target: { value: '<b>Tim</b> Sherman' },
+    });
+    fireEvent.change(screen.getByLabelText('Page subtitle'), {
+      target: { value: 'Soulful <script>alert(1)</script>Gigs' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save branding' }));
+
+    await waitFor(() => {
+      expect(updateBranding).toHaveBeenCalledWith(
+        { title: 'Tim Sherman', subtitle: 'Soulful Gigs' },
+        'admin-token',
+        expect.any(Function),
+      );
+    });
+  });
+
+  it('cancels the branding form and returns to dashboard', () => {
+    renderAdminPanel(adminAuthMock, {
+      ...defaultDataMock,
+      branding: { title: 'T', subtitle: 'S' },
+      setBranding: vi.fn(),
+    } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing branding' }));
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+  });
+
+  it('prefills branding form with defaults when no stored branding exists', () => {
+    renderAdminPanel(adminAuthMock, {
+      ...defaultDataMock,
+      branding: { title: null, subtitle: null },
+      setBranding: vi.fn(),
+    } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+
+    expect(screen.getByLabelText('Page title')).toHaveValue('Tim Sherman');
+    expect(screen.getByLabelText('Page subtitle')).toHaveValue(
+      'Soulful Gigs, Live Music & Booking',
+    );
+  });
+
+  it('refreshes branding from the API after a successful save', async () => {
+    const setBranding = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ title: 'Saved Title', comments: 'Saved Subtitle' }],
+    }));
+
+    renderAdminPanel(adminAuthMock, {
+      ...defaultDataMock,
+      branding: { title: 'Old', subtitle: 'Old Sub' },
+      setBranding,
+    } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save branding' }));
+
+    await waitFor(() => {
+      expect(setBranding).toHaveBeenCalledWith({
+        title: 'Saved Title',
+        subtitle: 'Saved Subtitle',
+      });
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('clears branding state when refresh returns non-ok or empty', async () => {
+    const setBranding = vi.fn();
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 } as Response));
+
+    renderAdminPanel(adminAuthMock, {
+      ...defaultDataMock,
+      branding: { title: 'Old', subtitle: 'Old Sub' },
+      setBranding,
+    } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit site branding' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save branding' }));
+
+    await waitFor(() => {
+      expect(setBranding).toHaveBeenCalledWith({ title: null, subtitle: null });
+    });
+    vi.unstubAllGlobals();
   });
 
   it('closes modal when backdrop is clicked', () => {
