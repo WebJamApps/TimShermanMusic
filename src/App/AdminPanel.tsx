@@ -14,9 +14,17 @@ import {
   updatePic,
   deletePic,
   updateBio,
+  updateBranding,
   IGigInput,
   IPicInput,
+  IBrandingInput,
 } from '../lib/adminActions';
+import {
+  DEFAULT_PAGE_TITLE,
+  DEFAULT_PAGE_SUBTITLE,
+  sanitizePlainText,
+} from '../lib/sanitizePlainText';
+import { IBranding } from '../providers/Data.provider';
 import './admin.css';
 
 const US_STATES = [
@@ -36,11 +44,21 @@ interface IAdminPanelProps {
   onRegisterTriggerEdit?: (trigger: (gig: any) => void) => void;
 }
 
-export type SubModalType = 'addGig' | 'editGig' | 'managePics' | 'addPic' | 'editPic' | 'editBio' | null;
+export type SubModalType =
+  | 'addGig'
+  | 'editGig'
+  | 'managePics'
+  | 'addPic'
+  | 'editPic'
+  | 'editBio'
+  | 'editBranding'
+  | null;
 
 const checkIsAdmin = (auth: any): boolean => {
   if (auth && auth.isAuthenticated && auth.user) {
     const { userType } = auth.user;
+    // Site admins for TimShermanMusic: Developer + tim-admin (TimShermanMusic#41).
+    // JaM-admin remains for WebJam internal operators who already use this panel.
     const adminRoles = ['Developer', 'JaM-admin', 'tim-admin'];
     return !!(userType && adminRoles.includes(userType));
   }
@@ -93,6 +111,7 @@ interface IDashboardProps {
   onAddGig: () => void;
   onManagePics: () => void;
   onEditBio: () => void;
+  onEditBranding: () => void;
   onLogout: () => void;
 }
 
@@ -103,6 +122,7 @@ function Dashboard({
   onAddGig,
   onManagePics,
   onEditBio,
+  onEditBranding,
   onLogout,
 }: IDashboardProps): React.JSX.Element {
   return (
@@ -162,6 +182,20 @@ function Dashboard({
             onClick={onEditBio}
           >
             Edit Bio
+          </button>
+        </div>
+        <div className="admin-dash-card">
+          <span className="admin-dash-icon">🏷️</span>
+          <h4 className="admin-dash-title">Site Branding</h4>
+          <p className="admin-dash-desc">Edit the page title and subtitle shown at the top of the site.</p>
+          <button
+            aria-label="Edit site branding"
+            type="button"
+            className="admin-btn primary"
+            style={{ width: '100%', padding: '0.5rem' }}
+            onClick={onEditBranding}
+          >
+            Edit Title
           </button>
         </div>
       </div>
@@ -538,6 +572,106 @@ function BioForm({ initialBio, onCancel, onSubmit }: IBioFormProps): React.JSX.E
   );
 }
 
+// Sub-component for page title / subtitle (site branding)
+interface IBrandingFormProps {
+  initialBranding: IBranding | null | undefined;
+  onCancel: () => void;
+  onSubmit: (branding: IBrandingInput) => void;
+}
+
+function BrandingForm({
+  initialBranding,
+  onCancel,
+  onSubmit,
+}: IBrandingFormProps): React.JSX.Element {
+  const [title, setTitle] = useState(
+    initialBranding?.title?.trim() ? initialBranding.title : DEFAULT_PAGE_TITLE,
+  );
+  const [subtitle, setSubtitle] = useState(
+    initialBranding?.subtitle?.trim()
+      ? initialBranding.subtitle
+      : DEFAULT_PAGE_SUBTITLE,
+  );
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanTitle = sanitizePlainText(title);
+    const cleanSubtitle = sanitizePlainText(subtitle);
+    if (!cleanTitle || !cleanSubtitle) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({ title: cleanTitle, subtitle: cleanSubtitle });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="admin-form" data-testid="branding-form">
+      <div className="admin-field-group full-width">
+        <label htmlFor="branding-title-input" className="admin-label">
+          Page Title *
+        </label>
+        <input
+          id="branding-title-input"
+          aria-label="Page title"
+          type="text"
+          className="admin-input"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder={DEFAULT_PAGE_TITLE}
+          required
+          maxLength={120}
+          disabled={submitting}
+        />
+        <span className="admin-field-help">
+          Shown as the large heading at the top of the site. Plain text only.
+        </span>
+      </div>
+      <div className="admin-field-group full-width">
+        <label htmlFor="branding-subtitle-input" className="admin-label">
+          Subtitle / Tagline *
+        </label>
+        <input
+          id="branding-subtitle-input"
+          aria-label="Page subtitle"
+          type="text"
+          className="admin-input"
+          value={subtitle}
+          onChange={e => setSubtitle(e.target.value)}
+          placeholder={DEFAULT_PAGE_SUBTITLE}
+          required
+          maxLength={200}
+          disabled={submitting}
+        />
+        <span className="admin-field-help">
+          Shown under the title. HTML and scripts are stripped on save.
+        </span>
+      </div>
+      <div className="admin-form-actions">
+        <button
+          aria-label="Cancel editing branding"
+          type="button"
+          className="admin-btn secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          aria-label="Save branding"
+          type="submit"
+          className="admin-btn primary"
+          disabled={submitting}
+        >
+          {submitting ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // Helper handlers for submit operations, extracted to keep component complexity low.
 const handleAdminGigSubmit = async (
   activeSubModal: SubModalType,
@@ -600,6 +734,7 @@ interface IModalRendererProps {
   auth: any;
   pics: any[] | null;
   bio: string | null | undefined;
+  branding: IBranding | null | undefined;
   adminActive: boolean;
   setAdminActive: (active: boolean) => void;
   loginWithGoogle: () => void;
@@ -608,6 +743,7 @@ interface IModalRendererProps {
   handleGigSubmit: (data: IGigInput) => void;
   handlePicSubmit: (data: IPicInput) => void;
   handleBioSubmit: (bioText: string) => void;
+  handleBrandingSubmit: (branding: IBrandingInput) => void;
   handleDeletePic: (id: string) => void;
   handleLogout: () => void;
   isAdmin: boolean;
@@ -682,6 +818,18 @@ function getModalContent(props: IModalRendererProps): {
         ),
         isWide: false,
       };
+    case 'editBranding':
+      return {
+        modalTitle: 'Edit Site Branding',
+        bodyContent: (
+          <BrandingForm
+            initialBranding={props.branding}
+            onCancel={() => props.setActiveSubModal(null)}
+            onSubmit={props.handleBrandingSubmit}
+          />
+        ),
+        isWide: false,
+      };
     default:
       return {
         modalTitle: 'Admin Dashboard',
@@ -693,6 +841,7 @@ function getModalContent(props: IModalRendererProps): {
             onAddGig={() => props.setActiveSubModal('addGig')}
             onManagePics={() => props.setActiveSubModal('managePics')}
             onEditBio={() => props.setActiveSubModal('editBio')}
+            onEditBranding={() => props.setActiveSubModal('editBranding')}
             onLogout={props.handleLogout}
           />
         ),
@@ -709,7 +858,9 @@ export function AdminPanel({
   onRegisterTriggerEdit,
 }: IAdminPanelProps): React.JSX.Element {
   const { auth, loginWithGoogle, logout } = useContext(AuthContext);
-  const { pics, setPics, setGigs, bio, setBio } = useContext(DataContext);
+  const {
+    pics, setPics, setGigs, bio, setBio, branding, setBranding,
+  } = useContext(DataContext);
 
   const [isOpen, setIsOpen] = useState(false);
   const [activeSubModal, setActiveSubModal] = useState<SubModalType>(null);
@@ -794,6 +945,33 @@ export function AdminPanel({
       });
   };
 
+  const refreshBranding = () => {
+    const backendUrl = process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+    fetch(`${backendUrl}/book?type=branding&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          if (setBranding) setBranding({ title: null, subtitle: null });
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        const record = Array.isArray(data) ? data[0] : null;
+        if (record && setBranding) {
+          setBranding({
+            title: typeof record.title === 'string' ? record.title : null,
+            subtitle: typeof record.comments === 'string' ? record.comments : null,
+          });
+        } else if (setBranding) {
+          setBranding({ title: null, subtitle: null });
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (setBranding) setBranding({ title: null, subtitle: null });
+      });
+  };
+
   const handleLogout = () => {
     logout();
     setAdminActive(false);
@@ -827,6 +1005,7 @@ export function AdminPanel({
     auth,
     pics,
     bio,
+    branding,
     adminActive,
     setAdminActive,
     loginWithGoogle,
@@ -868,6 +1047,12 @@ export function AdminPanel({
     handleBioSubmit: async (bioText: string) => {
       await updateBio(bioText, auth.token, () => {
         refreshBio();
+        setActiveSubModal(null);
+      });
+    },
+    handleBrandingSubmit: async (brandingData: IBrandingInput) => {
+      await updateBranding(brandingData, auth.token, () => {
+        refreshBranding();
         setActiveSubModal(null);
       });
     },

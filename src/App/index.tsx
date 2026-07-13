@@ -11,15 +11,23 @@ import { PicSlider } from './PicSlider';
 import { AdminPanel } from './AdminPanel';
 import { BioSection } from './BioSection';
 import { deleteGig } from '../lib/adminActions';
+import {
+  DEFAULT_PAGE_TITLE,
+  DEFAULT_PAGE_SUBTITLE,
+  resolveBrandingField,
+} from '../lib/sanitizePlainText';
 import { AuthContext } from '../providers/Auth.provider';
 import { DataContext } from '../providers/Data.provider';
 import fetchGigs from '../providers/fetchGigs';
 
 export function App() {
   const { auth } = useContext(AuthContext);
-  const { setGigs } = useContext(DataContext);
+  const { setGigs, branding } = useContext(DataContext);
   const [adminActive, setAdminActive] = useState(false);
   const triggerEditGigRef = useRef<((gig: any) => void) | null>(null);
+
+  const pageTitle = resolveBrandingField(branding?.title, DEFAULT_PAGE_TITLE);
+  const pageSubtitle = resolveBrandingField(branding?.subtitle, DEFAULT_PAGE_SUBTITLE);
 
   const refreshGigs = () => {
     fetchGigs.getGigs(setGigs);
@@ -42,8 +50,8 @@ export function App() {
         </div>
       )}
       <header className="brand-header">
-        <h1 className="brand-logo">Tim Sherman</h1>
-        <p className="brand-tagline">Soulful Gigs, Live Music & Booking</p>
+        <h1 className="brand-logo">{pageTitle}</h1>
+        <p className="brand-tagline">{pageSubtitle}</p>
       </header>
       <main style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
         <div style={{ width: '100%', maxWidth: '600px' }}>

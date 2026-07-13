@@ -229,6 +229,12 @@ describe('DataProvider component tests', () => {
           json: async () => [{ comments: 'Tim biography' }],
         } as Response);
       }
+      if (url.includes('/book?type=branding&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ title: 'Tim Sherman', comments: 'Soulful Gigs' }],
+        } as Response);
+      }
       return Promise.resolve({
         ok: true,
         json: async () => [],
@@ -477,6 +483,139 @@ describe('DataProvider component tests', () => {
       expect(screen.getByText('bio:')).toBeInTheDocument();
     });
 
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('fetches branding on mount and exposes title + subtitle (TimShermanMusic#41)', async () => {
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('type=TimShermanMusic-music')) {
+        return Promise.resolve({ ok: true, json: async () => mockPics } as Response);
+      }
+      if (url.includes('/book?type=bio&artist=tim')) {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+      if (url.includes('/book?type=branding&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ title: 'Custom Brand', comments: 'Custom Tagline' }],
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { branding } = useContext(DataContext);
+      return (
+        <div>
+          {branding ? (
+            <div data-testid="branding-loaded">
+              {branding.title}|{branding.subtitle}
+            </div>
+          ) : (
+            <div data-testid="loading">loading</div>
+          )}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('branding-loaded')).toHaveTextContent('Custom Brand|Custom Tagline');
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/book?type=branding&artist=tim'),
+    );
+  });
+
+  it('handles missing branding record by setting null fields', async () => {
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('type=TimShermanMusic-music')) {
+        return Promise.resolve({ ok: true, json: async () => mockPics } as Response);
+      }
+      if (url.includes('/book?type=branding&artist=tim')) {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { branding } = useContext(DataContext);
+      return (
+        <div>
+          {branding ? (
+            <div data-testid="branding-loaded">
+              {String(branding.title)}|{String(branding.subtitle)}
+            </div>
+          ) : (
+            <div data-testid="loading">loading</div>
+          )}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('branding-loaded')).toHaveTextContent('null|null');
+    });
+  });
+
+  it('handles branding non-ok response and network failure gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // non-ok first
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=branding&artist=tim')) {
+        return Promise.resolve({ ok: false, status: 500 } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { branding } = useContext(DataContext);
+      return branding
+        ? <div data-testid="branding-loaded">{String(branding.title)}</div>
+        : <div data-testid="loading">loading</div>;
+    };
+
+    const { unmount } = render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('branding-loaded')).toHaveTextContent('null');
+    });
+    unmount();
+
+    // network failure
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=branding&artist=tim')) {
+        return Promise.reject(new Error('branding boom'));
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('branding-loaded')).toHaveTextContent('null');
+    });
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
