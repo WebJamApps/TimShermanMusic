@@ -69,7 +69,11 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
     const backendUrl =
       process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
 
-    fetch(`${backendUrl}/book?artist=tim`)
+    // Scoped to the photo type only — the `books` collection under artist:'tim'
+    // also holds Tim's bio record (type: 'bio'), and an unfiltered fetch here
+    // would load it into `pics`, where the admin pics UI could delete it as if
+    // it were a photo (TimShermanMusic#40).
+    fetch(`${backendUrl}/book?artist=tim&type=TimShermanMusic-music`)
       .then(res => {
         if (!res.ok) {
           throw new Error(`${res.status} ${res.statusText}`);

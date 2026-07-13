@@ -757,7 +757,9 @@ export function AdminPanel({
 
   const refreshPics = () => {
     const backendUrl = process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
-    fetch(`${backendUrl}/book?artist=tim`)
+    // Type-scoped to photos only, so the bio doc (type: 'bio') never lands in
+    // the pics list and can't be deleted from Manage Photos (TimShermanMusic#40).
+    fetch(`${backendUrl}/book?artist=tim&type=TimShermanMusic-music`)
       .then(res => {
         if (res.ok) return res.json();
         throw new Error('pics refresh failed');
