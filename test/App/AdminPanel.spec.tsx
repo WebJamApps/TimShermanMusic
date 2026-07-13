@@ -143,6 +143,39 @@ describe('AdminPanel Dashboard component', () => {
     expect(screen.getByRole('button', { name: 'Manage Slideshow Photos' })).toBeInTheDocument();
   });
 
+  it('renders Dashboard console when clicked and user is Developer', () => {
+    const developerAuthMock = {
+      ...adminAuthMock,
+      auth: {
+        ...adminAuthMock.auth,
+        user: { email: 'developer@webjam.com', userType: 'Developer' },
+      },
+    };
+    renderAdminPanel(developerAuthMock);
+    const trigger = screen.getByRole('button', { name: 'Open Admin Portal' });
+    fireEvent.click(trigger);
+
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('developer@webjam.com')).toBeInTheDocument();
+  });
+
+  it('does not render Dashboard console when clicked and user is JaM-admin', () => {
+    const jamAdminAuthMock = {
+      ...adminAuthMock,
+      auth: {
+        ...adminAuthMock.auth,
+        user: { email: 'jamadmin@webjam.com', userType: 'JaM-admin' },
+      },
+    };
+    renderAdminPanel(jamAdminAuthMock);
+    const trigger = screen.getByRole('button', { name: 'Open Admin Portal' });
+    fireEvent.click(trigger);
+
+    expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+    expect(screen.getByText('Admin Access')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign In with Google' })).toBeInTheDocument();
+  });
+
   it('toggles edit mode when clicking toggle edit button', () => {
     renderAdminPanel(adminAuthMock);
     fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));

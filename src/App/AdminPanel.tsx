@@ -57,9 +57,8 @@ export type SubModalType =
 const checkIsAdmin = (auth: any): boolean => {
   if (auth && auth.isAuthenticated && auth.user) {
     const { userType } = auth.user;
-    // Site admins for TimShermanMusic: Developer + tim-admin (TimShermanMusic#41).
-    // JaM-admin remains for WebJam internal operators who already use this panel.
-    const adminRoles = ['Developer', 'JaM-admin', 'tim-admin'];
+    // Site admins for TimShermanMusic: Developer + tim-admin (TimShermanMusic#41, TimShermanMusic#44).
+    const adminRoles = ['Developer', 'tim-admin'];
     return !!(userType && adminRoles.includes(userType));
   }
   return false;
@@ -992,7 +991,7 @@ export function AdminPanel({
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          Admin
+          <span className="admin-trigger-text">Admin</span>
         </button>
       </div>
     );
