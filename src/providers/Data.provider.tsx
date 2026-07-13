@@ -36,6 +36,13 @@ export interface Igig {
   id?: number;
 }
 
+export interface IBranding {
+  /** Page header title (h1). Empty/null means use frontend default. */
+  title: string | null;
+  /** Page header subtitle/tagline. Empty/null means use frontend default. */
+  subtitle: string | null;
+}
+
 export interface IDataContext {
   pics: Ipic[] | null;
   setPics: (_arg0: Ipic[] | null) => void;
@@ -43,6 +50,8 @@ export interface IDataContext {
   setGigs: (_arg0: Igig[] | null) => void;
   bio?: string | null;
   setBio?: (_arg0: string | null) => void;
+  branding?: IBranding | null;
+  setBranding?: (_arg0: IBranding | null) => void;
 }
 
 export const DataContext = createContext<IDataContext>({
@@ -52,6 +61,8 @@ export const DataContext = createContext<IDataContext>({
   setGigs: () => {},
   bio: null,
   setBio: () => {},
+  branding: null,
+  setBranding: () => {},
 });
 
 declare const process: {
@@ -64,15 +75,17 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
   const [pics, setPics] = useState<Ipic[] | null>(null);
   const [gigs, setGigs] = useState<Igig[] | null>(null);
   const [bio, setBio] = useState<string | null>(null);
+  // null = not loaded yet; { title/subtitle: null } = loaded, no stored value
+  const [branding, setBranding] = useState<IBranding | null>(null);
 
   useEffect(() => {
     const backendUrl =
       process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
 
     // Scoped to the photo type only — the `books` collection under artist:'tim'
-    // also holds Tim's bio record (type: 'bio'), and an unfiltered fetch here
-    // would load it into `pics`, where the admin pics UI could delete it as if
-    // it were a photo (TimShermanMusic#40).
+    // also holds Tim's bio record (type: 'bio') and branding (type: 'branding'),
+    // and an unfiltered fetch here would load them into `pics`, where the admin
+    // pics UI could delete them as if they were photos (TimShermanMusic#40).
     fetch(`${backendUrl}/book?artist=tim&type=TimShermanMusic-music`)
       .then(res => {
         if (!res.ok) {
@@ -110,11 +123,39 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         setBio('');
       });
 
+    // Page title (record.title) + subtitle/tagline (record.comments)
+    fetch(`${backendUrl}/book?type=branding&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          setBranding({ title: null, subtitle: null });
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        const record = Array.isArray(data) ? data[0] : null;
+        if (record) {
+          setBranding({
+            title: typeof record.title === 'string' ? record.title : null,
+            subtitle: typeof record.comments === 'string' ? record.comments : null,
+          });
+        } else {
+          setBranding({ title: null, subtitle: null });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch branding:', err);
+        setBranding({ title: null, subtitle: null });
+      });
+
     fetchGigs.getGigs(setGigs);
   }, []);
 
   return (
-    <DataContext.Provider value={{ pics, setPics, gigs, setGigs, bio, setBio }}>
+    <DataContext.Provider value={{
+      pics, setPics, gigs, setGigs, bio, setBio, branding, setBranding,
+    }}
+    >
       {children}
     </DataContext.Provider>
   );

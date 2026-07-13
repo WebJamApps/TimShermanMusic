@@ -225,3 +225,65 @@ export const updateBio = async (
     console.error('updateBio failed:', err);
   }
 };
+
+export interface IBrandingInput {
+  /** Page header title (h1). */
+  title: string;
+  /** Page header subtitle / tagline. */
+  subtitle: string;
+}
+
+/**
+ * Create or update the site branding record (page title + subtitle) in `/book`.
+ * Stored as type `branding` / artist `tim` — title holds the h1, comments the tagline.
+ * Mirrors updateBio so it never touches photo or bio docs (TimShermanMusic#41).
+ */
+export const updateBranding = async (
+  branding: IBrandingInput,
+  token: string,
+  callback?: () => void,
+) => {
+  try {
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    const checkRes = await fetch(`${backendUrl}/book?type=branding&artist=tim`);
+    let brandingExists = false;
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      brandingExists = !!(Array.isArray(data) && data[0]);
+    }
+
+    const method = brandingExists ? 'PUT' : 'POST';
+    const url = brandingExists
+      ? `${backendUrl}/book/one?type=branding&artist=tim`
+      : `${backendUrl}/book`;
+
+    const body = brandingExists
+      ? { title: branding.title, comments: branding.subtitle }
+      : {
+          title: branding.title,
+          type: 'branding',
+          artist: 'tim',
+          comments: branding.subtitle,
+        };
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
+    if (callback) callback();
+  } catch (err) {
+    console.error('updateBranding failed:', err);
+  }
+};

@@ -12,6 +12,7 @@ import {
   updatePic,
   deletePic,
   updateBio,
+  updateBranding,
 } from '../../src/lib/adminActions';
 
 const mockTransmit = vi.fn();
@@ -323,6 +324,138 @@ describe('adminActions SocketCluster transmitters', () => {
       await updateBio('Biography', 'mock-token');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('updateBio failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('updateBranding action', () => {
+    let fetchSpy: any;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(globalThis, 'fetch');
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('performs POST /book when branding does not exist yet', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'new-branding-id' }),
+      } as Response);
+
+      await updateBranding(
+        { title: 'Tim Sherman', subtitle: 'Soulful Gigs, Live Music & Booking' },
+        'mock-token',
+        callback,
+      );
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:7000/book?type=branding&artist=tim',
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: 'Bearer mock-token',
+        },
+        body: JSON.stringify({
+          title: 'Tim Sherman',
+          type: 'branding',
+          artist: 'tim',
+          comments: 'Soulful Gigs, Live Music & Booking',
+        }),
+      });
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('performs PUT /book/one when branding already exists', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ _id: 'existing-branding-id' }],
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: 1 }),
+      } as Response);
+
+      await updateBranding(
+        { title: 'Custom Title', subtitle: 'Custom Tagline' },
+        'mock-token',
+        callback,
+      );
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:7000/book?type=branding&artist=tim',
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:7000/book/one?type=branding&artist=tim',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: 'Bearer mock-token',
+          },
+          body: JSON.stringify({
+            title: 'Custom Title',
+            comments: 'Custom Tagline',
+          }),
+        },
+      );
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('logs error if fetch fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchSpy.mockRejectedValueOnce(new Error('Fetch failed'));
+
+      await updateBranding({ title: 'T', subtitle: 'S' }, 'mock-token');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updateBranding failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('treats non-ok existence check as missing and POSTs, then fails if write is non-ok', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Server Error',
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+      } as Response);
+
+      await updateBranding({ title: 'T', subtitle: 'S' }, 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book', expect.objectContaining({
+        method: 'POST',
+      }));
+      expect(callback).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updateBranding failed:', expect.any(Error));
       consoleErrorSpy.mockRestore();
     });
   });
