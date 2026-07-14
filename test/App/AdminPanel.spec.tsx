@@ -556,6 +556,52 @@ describe('AdminPanel Dashboard component', () => {
     });
   });
 
+  describe('mobile (cellphone) login direct redirect', () => {
+    let originalInnerWidth: number;
+
+    beforeEach(() => {
+      originalInnerWidth = window.innerWidth;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: originalInnerWidth,
+      });
+    });
+
+    it('redirects directly to Google login on mobile when clicked and not logged in', () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 500,
+      });
+
+      renderAdminPanel(defaultAuthMock);
+      const trigger = screen.getByRole('button', { name: 'Open Admin Portal' });
+      fireEvent.click(trigger);
+
+      expect(mockLoginWithGoogle).toHaveBeenCalled();
+      expect(screen.queryByText('Admin Access')).not.toBeInTheDocument();
+    });
+
+    it('opens the admin dashboard on mobile when clicked and logged in as admin', () => {
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 500,
+      });
+
+      renderAdminPanel(adminAuthMock);
+      const trigger = screen.getByRole('button', { name: 'Open Admin Portal' });
+      fireEvent.click(trigger);
+
+      expect(mockLoginWithGoogle).not.toHaveBeenCalled();
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+    });
+  });
+
   it('stops event propagation on dialog panel clicks', () => {
     renderAdminPanel(adminAuthMock);
     fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
