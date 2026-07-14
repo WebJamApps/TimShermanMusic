@@ -61,7 +61,10 @@
     justify-content: center;
     align-items: center;
     gap: 0;
-    opacity: 0.25;
+    opacity: 0.3;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .admin-trigger-btn svg {

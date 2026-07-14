@@ -985,7 +985,13 @@ export function AdminPanel({
           aria-label="Open Admin Portal"
           type="button"
           className="admin-trigger-btn"
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (!isAdmin && window.innerWidth <= 600) {
+              loginWithGoogle();
+            } else {
+              setIsOpen(true);
+            }
+          }}
         >
           <svg style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
