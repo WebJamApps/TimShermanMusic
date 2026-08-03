@@ -1,6 +1,6 @@
 {
   "name": "timshermanmusic",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Tim Sherman Music — gigs, photos, and booking site",
   "main": "dist/index.html",
   "repository": {
