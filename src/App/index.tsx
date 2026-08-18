@@ -72,9 +72,7 @@ export function App() {
           triggerEditGigRef.current = trigger;
         }}
       />
-      <div className="app-version" data-testid="app-version">
-        Version {__APP_VERSION__}
-      </div>
+      <div className="app-version" data-testid="app-version">{__APP_VERSION__}</div>
     </div>
   );
 }
