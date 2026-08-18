@@ -25,7 +25,7 @@ describe('App & BookingForm', () => {
 
     const versionElem = screen.getByTestId('app-version');
     expect(versionElem).toBeInTheDocument();
-    expect(versionElem).toHaveTextContent(`Version ${__APP_VERSION__}`);
+    expect(versionElem).toHaveTextContent(__APP_VERSION__);
 
     expect(screen.getByRole('heading', { name: 'Book Tim Sherman' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
