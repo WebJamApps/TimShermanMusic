@@ -48,7 +48,7 @@ const mockPics: Ipic[] = [
 
 const mockSettings: Isettings = {
   autoplay: true,
-  autoplaySpeed: 3000,
+  autoplaySpeed: 5000,
   infinite: true,
   speed: 1000,
   slidesToShow: 1,
@@ -154,23 +154,23 @@ describe('picture slider component tests', () => {
 
     expect(screen.getByText('Slide 1 Caption')).toBeInTheDocument();
 
-    // Advance by autoplay duration (3000ms)
+    // Advance by autoplay duration (5000ms)
     act(() => {
-      vi.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(5000);
     });
 
     // Should now be on slide 2 (no caption)
     expect(screen.queryByText('Slide 1 Caption')).not.toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(5000);
     });
 
     // Should now be on slide 3
     expect(screen.getByText('Slide 3 Caption')).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(5000);
     });
 
     // Loops back to slide 1
@@ -185,20 +185,20 @@ describe('picture slider component tests', () => {
 
     // Advance 3 steps
     act(() => {
-      vi.advanceTimersByTime(3000); // -> slide 2
+      vi.advanceTimersByTime(5000); // -> slide 2
     });
     act(() => {
-      vi.advanceTimersByTime(3000); // -> slide 3
+      vi.advanceTimersByTime(5000); // -> slide 3
     });
     expect(screen.getByText('Slide 3 Caption')).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(3000); // -> stays at slide 3
+      vi.advanceTimersByTime(5000); // -> stays at slide 3
     });
     expect(screen.getByText('Slide 3 Caption')).toBeInTheDocument();
   });
 
-  it('renders PicSlider utilizing DataContext', () => {
+  it('renders PicSlider utilizing DataContext with default 5000ms autoplay interval', () => {
     const TestComponent = () => {
       return (
         <DataContext.Provider value={{ pics: mockPics, setPics: () => {}, gigs: null, setGigs: () => {} }}>
@@ -209,6 +209,14 @@ describe('picture slider component tests', () => {
 
     render(<TestComponent />);
     expect(screen.getByText('Slide 1 Caption')).toBeInTheDocument();
+    const activeImage = screen.getByAltText('Slide 1 Caption');
+    expect(activeImage).toHaveClass('slide-images');
+
+    // Advance by 5000ms to verify default interval
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(screen.queryByText('Slide 1 Caption')).not.toBeInTheDocument();
   });
 });
 
