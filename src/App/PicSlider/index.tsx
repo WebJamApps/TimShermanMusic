@@ -115,7 +115,7 @@ export function PicSlider(): React.JSX.Element {
   const { pics } = useContext(DataContext);
   const settings: Isettings = {
     autoplay: true,
-    autoplaySpeed: 3000,
+    autoplaySpeed: 5000,
     infinite: true,
     speed: 1000,
     slidesToShow: 1,
