@@ -13,10 +13,20 @@ describe('App & BookingForm', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the Tim Sherman brand heading and contact form', () => {
+  it('renders the Tim Sherman brand heading, tagline, contact form, and app version', () => {
     render(<App />);
-    expect(screen.getByRole('heading', { name: 'Tim Sherman' })).toBeInTheDocument();
-    expect(screen.getByText('Soulful Gigs, Live Music & Booking')).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: 'Tim Sherman' });
+    expect(heading).toBeInTheDocument();
+    expect(heading).toHaveClass('brand-logo');
+
+    const tagline = screen.getByText('Soulful Gigs, Live Music & Booking');
+    expect(tagline).toBeInTheDocument();
+    expect(tagline).toHaveClass('brand-tagline');
+
+    const versionElem = screen.getByTestId('app-version');
+    expect(versionElem).toBeInTheDocument();
+    expect(versionElem).toHaveTextContent(`Version ${__APP_VERSION__}`);
+
     expect(screen.getByRole('heading', { name: 'Book Tim Sherman' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
