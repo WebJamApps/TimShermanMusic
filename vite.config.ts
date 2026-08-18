@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
+import pkg from './package.json';
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url));
 const testDir = fileURLToPath(new URL('./test', import.meta.url));
@@ -41,6 +42,10 @@ export default defineConfig(async ({ mode }) => {
     ? [...(await import('vitest/config')).configDefaults.exclude]
     : [];
   return {
+    define: {
+      global: 'globalThis',
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
     plugins: [
       ...(isTest ? [] : [replaceProcessEnv(env)]),
       react(),
