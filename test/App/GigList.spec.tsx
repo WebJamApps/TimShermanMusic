@@ -3,7 +3,7 @@
  * @description Comprehensive unit tests for GigList and DataProvider gig-related functionality.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React, { useContext } from 'react';
 import { vi, expect, describe, it, beforeEach, afterEach } from 'vitest';
@@ -78,25 +78,103 @@ describe('GigList component tests', () => {
     expect(screen.getByText(/No upcoming performances scheduled/i)).toBeInTheDocument();
   });
 
-  it('renders upcoming gigs in ascending sorted order and hides past gigs', () => {
+  it('renders upcoming gigs in ascending sorted order and past gigs in past section', () => {
     render(
       <DataContext.Provider value={{ pics: null, setPics: () => {}, gigs: mockGigs, setGigs: () => {} }}>
         <GigList />
       </DataContext.Provider>
     );
 
-    // Past gig should not be rendered
-    expect(screen.queryByText('Past Venue C')).not.toBeInTheDocument();
-
     // Upcoming gigs should be rendered
     expect(screen.getByText('Future Venue A')).toBeInTheDocument();
     expect(screen.getByText('Future Venue B')).toBeInTheDocument();
 
-    // Verify ordering (Venue B datetime 2026-11-20 is before Venue A 2026-12-15)
-    const items = screen.getAllByTestId('gig-item');
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent('Future Venue B');
-    expect(items[1]).toHaveTextContent('Future Venue A');
+    // Verify upcoming ordering (Venue B datetime 2026-11-20 is before Venue A 2026-12-15)
+    const upcomingItems = screen.getAllByTestId('gig-item');
+    expect(upcomingItems).toHaveLength(2);
+    expect(upcomingItems[0]).toHaveTextContent('Future Venue B');
+    expect(upcomingItems[1]).toHaveTextContent('Future Venue A');
+
+    // Past gig should be rendered in past gigs section
+    const pastItems = screen.getAllByTestId('past-gig-item');
+    expect(pastItems).toHaveLength(1);
+    expect(pastItems[0]).toHaveTextContent('Past Venue C');
+    expect(pastItems[0]).toHaveTextContent('Past Event');
+  });
+
+  it('hides past gigs when their id is listed in hiddenGigIds', () => {
+    render(
+      <DataContext.Provider
+        value={{
+          pics: null,
+          setPics: () => {},
+          gigs: mockGigs,
+          setGigs: () => {},
+          pastGigsConfig: { hiddenGigIds: ['g3'] },
+        }}
+      >
+        <GigList />
+      </DataContext.Provider>
+    );
+
+    // Past Venue C is hidden
+    expect(screen.queryByText('Past Venue C')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('past-gig-item')).not.toBeInTheDocument();
+    expect(screen.queryByText('Past Performances')).not.toBeInTheDocument();
+  });
+
+  it('paginates past performances at 4 items per page with navigation controls', () => {
+    const manyPastGigs: Igig[] = [
+      { _id: 'p1', venue: 'Past 2024-01', datetime: '2024-01-01T19:00:00.000Z' },
+      { _id: 'p2', venue: 'Past 2024-02', datetime: '2024-02-01T19:00:00.000Z' },
+      { _id: 'p3', venue: 'Past 2024-03', datetime: '2024-03-01T19:00:00.000Z' },
+      { _id: 'p4', venue: 'Past 2024-04', datetime: '2024-04-01T19:00:00.000Z' },
+      { _id: 'p5', venue: 'Past 2024-05', datetime: '2024-05-01T19:00:00.000Z' },
+      { _id: 'p6', venue: 'Past 2024-06', datetime: '2024-06-01T19:00:00.000Z' },
+    ];
+
+    render(
+      <DataContext.Provider
+        value={{
+          pics: null,
+          setPics: () => {},
+          gigs: manyPastGigs,
+          setGigs: () => {},
+          pastGigsConfig: { hiddenGigIds: [] },
+        }}
+      >
+        <GigList />
+      </DataContext.Provider>
+    );
+
+    // Sorted most recent first: 2024-06, 2024-05, 2024-04, 2024-03 on Page 1
+    const page1Items = screen.getAllByTestId('past-gig-item');
+    expect(page1Items).toHaveLength(4);
+    expect(page1Items[0]).toHaveTextContent('Past 2024-06');
+    expect(page1Items[1]).toHaveTextContent('Past 2024-05');
+    expect(page1Items[2]).toHaveTextContent('Past 2024-04');
+    expect(page1Items[3]).toHaveTextContent('Past 2024-03');
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+
+    const prevBtn = screen.getByRole('button', { name: /Previous/i });
+    const nextBtn = screen.getByRole('button', { name: /Next/i });
+    expect(prevBtn).toBeDisabled();
+    expect(nextBtn).toBeEnabled();
+
+    // Click Next
+    fireEvent.click(nextBtn);
+
+    const page2Items = screen.getAllByTestId('past-gig-item');
+    expect(page2Items).toHaveLength(2);
+    expect(page2Items[0]).toHaveTextContent('Past 2024-02');
+    expect(page2Items[1]).toHaveTextContent('Past 2024-01');
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+    expect(prevBtn).toBeEnabled();
+    expect(nextBtn).toBeDisabled();
+
+    // Click Previous
+    fireEvent.click(prevBtn);
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
   });
 
   it('renders ticket details correctly for links, html and text', () => {

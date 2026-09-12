@@ -13,6 +13,7 @@ import {
   deletePic,
   updateBio,
   updateBranding,
+  updatePastGigsConfig,
 } from '../../src/lib/adminActions';
 
 const mockTransmit = vi.fn();
@@ -456,6 +457,141 @@ describe('adminActions SocketCluster transmitters', () => {
       }));
       expect(callback).not.toHaveBeenCalled();
       expect(consoleErrorSpy).toHaveBeenCalledWith('updateBranding failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('updatePastGigsConfig action', () => {
+    let fetchSpy: any;
+
+    beforeEach(() => {
+      fetchSpy = vi.spyOn(globalThis, 'fetch');
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('performs POST /book when pastGigsConfig does not exist yet', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'new-config-id' }),
+      } as Response);
+
+      await updatePastGigsConfig(
+        { hiddenGigIds: ['g1', 'g2'] },
+        'mock-token',
+        callback,
+      );
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:7000/book?type=pastGigsConfig&artist=tim',
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:7000/book',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: 'Bearer mock-token',
+          },
+          body: JSON.stringify({
+            title: 'PastGigsConfig',
+            type: 'pastGigsConfig',
+            artist: 'tim',
+            comments: JSON.stringify({ hiddenGigIds: ['g1', 'g2'] }),
+          }),
+        },
+      );
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('performs PUT /book/one when pastGigsConfig already exists', async () => {
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ _id: 'existing-config-id' }],
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ ok: 1 }),
+      } as Response);
+
+      await updatePastGigsConfig(
+        { hiddenGigIds: ['g3'] },
+        'mock-token',
+        callback,
+      );
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        'http://localhost:7000/book?type=pastGigsConfig&artist=tim',
+      );
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        'http://localhost:7000/book/one?type=pastGigsConfig&artist=tim',
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: 'Bearer mock-token',
+          },
+          body: JSON.stringify({
+            comments: JSON.stringify({ hiddenGigIds: ['g3'] }),
+          }),
+        },
+      );
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('logs error if fetch fails', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      fetchSpy.mockRejectedValueOnce(new Error('Fetch failed'));
+
+      await updatePastGigsConfig({ hiddenGigIds: [] }, 'mock-token');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updatePastGigsConfig failed:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('treats non-ok existence check as missing and POSTs, then fails if write is non-ok', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const callback = vi.fn();
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Server Error',
+      } as Response);
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+      } as Response);
+
+      await updatePastGigsConfig({ hiddenGigIds: [] }, 'mock-token', callback);
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, 'http://localhost:7000/book', expect.objectContaining({
+        method: 'POST',
+      }));
+      expect(callback).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith('updatePastGigsConfig failed:', expect.any(Error));
       consoleErrorSpy.mockRestore();
     });
   });

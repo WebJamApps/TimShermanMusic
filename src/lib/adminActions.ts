@@ -4,6 +4,7 @@
  */
 
 import scc from 'socketcluster-client';
+import type { IPastGigsConfig } from '../providers/Data.provider';
 
 export interface IGigInput {
   datetime: string | null;
@@ -285,5 +286,59 @@ export const updateBranding = async (
     if (callback) callback();
   } catch (err) {
     console.error('updateBranding failed:', err);
+  }
+};
+
+/**
+ * Create or update the past gigs curation configuration in `/book`.
+ * Stored as type `pastGigsConfig` / artist `tim` — comments holds the JSON stringified config.
+ */
+export const updatePastGigsConfig = async (
+  config: IPastGigsConfig,
+  token: string,
+  callback?: () => void,
+) => {
+  try {
+    const backendUrl =
+      process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+
+    const checkRes = await fetch(`${backendUrl}/book?type=pastGigsConfig&artist=tim`);
+    let configExists = false;
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      configExists = !!(Array.isArray(data) && data[0]);
+    }
+
+    const method = configExists ? 'PUT' : 'POST';
+    const url = configExists
+      ? `${backendUrl}/book/one?type=pastGigsConfig&artist=tim`
+      : `${backendUrl}/book`;
+
+    const body = configExists
+      ? { comments: JSON.stringify(config) }
+      : {
+          title: 'PastGigsConfig',
+          type: 'pastGigsConfig',
+          artist: 'tim',
+          comments: JSON.stringify(config),
+        };
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+
+    if (callback) callback();
+  } catch (err) {
+    console.error('updatePastGigsConfig failed:', err);
   }
 };

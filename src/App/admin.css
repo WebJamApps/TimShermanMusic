@@ -478,6 +478,68 @@
   animation: fadeIn 0.3s ease;
 }
 
+/* Past Gigs Management */
+.admin-past-gigs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.admin-past-gig-row {
+  background: #15161d;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-past-gig-info {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.admin-past-gig-venue {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+
+.admin-past-gig-meta {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.admin-status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-status-badge.visible {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.admin-status-badge.hidden {
+  background: rgba(156, 163, 175, 0.15);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.3);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
