@@ -627,4 +627,128 @@ describe('DataProvider component tests', () => {
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
+
+  it('fetches pastGigsConfig and populates hiddenGigIds state', async () => {
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=pastGigsConfig&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ comments: JSON.stringify({ hiddenGigIds: ['gig-1', 'gig-2'] }) }],
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { pastGigsConfig } = useContext(DataContext);
+      return (
+        <div>
+          {pastGigsConfig ? (
+            <div data-testid="past-config-loaded">
+              {pastGigsConfig.hiddenGigIds.join(',')}
+            </div>
+          ) : (
+            <div data-testid="loading">loading</div>
+          )}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('past-config-loaded')).toHaveTextContent('gig-1,gig-2');
+    });
+  });
+
+  it('handles invalid JSON in pastGigsConfig comments and defaults to empty array', async () => {
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=pastGigsConfig&artist=tim')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [{ comments: 'not-json' }],
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { pastGigsConfig } = useContext(DataContext);
+      return (
+        <div>
+          {pastGigsConfig ? (
+            <div data-testid="past-config-loaded">
+              count:{pastGigsConfig.hiddenGigIds.length}
+            </div>
+          ) : (
+            <div data-testid="loading">loading</div>
+          )}
+        </div>
+      );
+    };
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('past-config-loaded')).toHaveTextContent('count:0');
+    });
+  });
+
+  it('handles pastGigsConfig non-ok response and network failure gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // non-ok first
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=pastGigsConfig&artist=tim')) {
+        return Promise.resolve({ ok: false, status: 500 } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const ConsumerComponent = () => {
+      const { pastGigsConfig } = useContext(DataContext);
+      return pastGigsConfig
+        ? <div data-testid="past-config-loaded">count:{pastGigsConfig.hiddenGigIds.length}</div>
+        : <div data-testid="loading">loading</div>;
+    };
+
+    const { unmount } = render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('past-config-loaded')).toHaveTextContent('count:0');
+    });
+    unmount();
+
+    // network failure
+    fetchSpy.mockImplementation((url: any) => {
+      if (url.includes('/book?type=pastGigsConfig&artist=tim')) {
+        return Promise.reject(new Error('past gigs boom'));
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(
+      <DataProvider>
+        <ConsumerComponent />
+      </DataProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('past-config-loaded')).toHaveTextContent('count:0');
+    });
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 });

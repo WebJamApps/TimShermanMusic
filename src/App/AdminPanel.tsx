@@ -3,7 +3,7 @@
  * @description Admin Panel and modals for managing gigs and slideshow pictures.
  */
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../providers/Auth.provider';
 import { DataContext } from '../providers/Data.provider';
 import fetchGigs from '../providers/fetchGigs';
@@ -15,6 +15,7 @@ import {
   deletePic,
   updateBio,
   updateBranding,
+  updatePastGigsConfig,
   IGigInput,
   IPicInput,
   IBrandingInput,
@@ -24,7 +25,8 @@ import {
   DEFAULT_PAGE_SUBTITLE,
   sanitizePlainText,
 } from '../lib/sanitizePlainText';
-import { IBranding } from '../providers/Data.provider';
+import { IBranding, IPastGigsConfig, Igig } from '../providers/Data.provider';
+import { getStableGigId, selectPastGigs } from '../lib/pastGigs';
 import './admin.css';
 
 const US_STATES = [
@@ -52,6 +54,7 @@ export type SubModalType =
   | 'editPic'
   | 'editBio'
   | 'editBranding'
+  | 'managePastGigs'
   | null;
 
 const checkIsAdmin = (auth: any): boolean => {
@@ -111,6 +114,7 @@ interface IDashboardProps {
   onManagePics: () => void;
   onEditBio: () => void;
   onEditBranding: () => void;
+  onManagePastGigs: () => void;
   onLogout: () => void;
 }
 
@@ -122,6 +126,7 @@ function Dashboard({
   onManagePics,
   onEditBio,
   onEditBranding,
+  onManagePastGigs,
   onLogout,
 }: IDashboardProps): React.JSX.Element {
   return (
@@ -154,6 +159,20 @@ function Dashboard({
               {adminActive ? 'Exit Edit Mode' : 'Enter Edit Mode'}
             </button>
           </div>
+        </div>
+        <div className="admin-dash-card">
+          <span className="admin-dash-icon">⏮️</span>
+          <h4 className="admin-dash-title">Past Gigs</h4>
+          <p className="admin-dash-desc">Choose which past performances appear on the site.</p>
+          <button
+            aria-label="Manage Past Performances"
+            type="button"
+            className="admin-btn primary"
+            style={{ width: '100%', padding: '0.5rem' }}
+            onClick={onManagePastGigs}
+          >
+            Manage Past Gigs
+          </button>
         </div>
         <div className="admin-dash-card">
           <span className="admin-dash-icon">📸</span>
@@ -671,6 +690,138 @@ function BrandingForm({
   );
 }
 
+// 6. Sub-component for Managing Past Gigs (Show / Hide)
+interface IManagePastGigsProps {
+  gigs: Igig[] | null;
+  pastGigsConfig: IPastGigsConfig | null | undefined;
+  onCancel: () => void;
+  onSubmit: (config: IPastGigsConfig) => void;
+}
+
+function ManagePastGigs({
+  gigs,
+  pastGigsConfig,
+  onCancel,
+  onSubmit,
+}: IManagePastGigsProps): React.JSX.Element {
+  const pastGigs = selectPastGigs(gigs);
+
+  const [hiddenIds, setHiddenIds] = useState<string[]>(
+    pastGigsConfig?.hiddenGigIds || []
+  );
+  const [submitting, setSubmitting] = useState(false);
+
+  // pastGigsConfig can resolve (over REST) after this sub-modal has already
+  // mounted with the useState initializer above. Sync the working set the
+  // first time a real config arrives, but never again afterward, so we
+  // don't clobber edits the user has already made in the open modal.
+  const syncedConfigRef = useRef(pastGigsConfig);
+  useEffect(() => {
+    if (pastGigsConfig != null && syncedConfigRef.current == null) {
+      setHiddenIds(pastGigsConfig.hiddenGigIds || []);
+    }
+    syncedConfigRef.current = pastGigsConfig;
+  }, [pastGigsConfig]);
+
+  const toggleGig = (gigId: string) => {
+    setHiddenIds(prev =>
+      prev.includes(gigId) ? prev.filter(id => id !== gigId) : [...prev, gigId]
+    );
+  };
+
+  const formatDate = (isoString?: string | null): string => {
+    if (!isoString) return '';
+    try {
+      return new Date(isoString).toLocaleDateString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    onSubmit({ hiddenGigIds: hiddenIds });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <p style={{ color: '#9ca3af', marginBottom: '1rem', fontSize: '0.9rem' }}>
+        Past performances appear in the &quot;Past Performances&quot; section on the homepage (4 per page).
+        You can hide any performances you do not want displayed.
+      </p>
+
+      {pastGigs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9ca3af' }}>
+          No past performances found in the database.
+        </div>
+      ) : (
+        <div className="admin-past-gigs-list" data-testid="admin-past-gigs-list">
+          {pastGigs.map((gig, index) => {
+            const gigId = getStableGigId(gig);
+            const canToggle = gigId !== null;
+            const isHidden = gigId !== null && hiddenIds.includes(gigId);
+            const rowKey = gigId ?? `no-id-${index}`;
+            return (
+              <div key={rowKey} className="admin-past-gig-row" data-testid={`admin-past-gig-${gigId ?? 'no-id'}`}>
+                <div className="admin-past-gig-info">
+                  <h4 className="admin-past-gig-venue">{gig.venue}</h4>
+                  <div className="admin-past-gig-meta">
+                    <span>{formatDate(gig.datetime)}</span>
+                    {(gig.city || gig.usState) && (
+                      <span> • {[gig.city, gig.usState].filter(Boolean).join(', ')}</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className={`admin-status-badge ${isHidden ? 'hidden' : 'visible'}`}>
+                    {isHidden ? 'Hidden' : 'Visible'}
+                  </span>
+                  <button
+                    type="button"
+                    className={`admin-inline-btn ${isHidden ? '' : 'delete'}`}
+                    onClick={() => gigId !== null && toggleGig(gigId)}
+                    disabled={!canToggle}
+                    title={canToggle ? undefined : 'This performance cannot be hidden (no stable id)'}
+                    aria-label={canToggle ? (isHidden ? `Show ${gig.venue}` : `Hide ${gig.venue}`) : `Cannot hide ${gig.venue} (no id)`}
+                  >
+                    {isHidden ? 'Show' : 'Hide'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="admin-form-actions" style={{ marginTop: '1.5rem' }}>
+        <button
+          aria-label="Cancel past gigs changes"
+          type="button"
+          className="admin-btn secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          aria-label="Save past gigs configuration"
+          type="submit"
+          className="admin-btn primary"
+          disabled={submitting}
+        >
+          {submitting ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // Helper handlers for submit operations, extracted to keep component complexity low.
 const handleAdminGigSubmit = async (
   activeSubModal: SubModalType,
@@ -725,15 +876,17 @@ const handleAdminPicSubmit = async (
   }
 };
 
-// 6. External helper function to extract render dispatching and maintain strict cyclomatic complexity limits.
+// 7. External helper function to extract render dispatching and maintain strict cyclomatic complexity limits.
 interface IModalRendererProps {
   activeSubModal: SubModalType;
   editingGig: any;
   editingPic: any;
   auth: any;
   pics: any[] | null;
+  gigs: Igig[] | null;
   bio: string | null | undefined;
   branding: IBranding | null | undefined;
+  pastGigsConfig: IPastGigsConfig | null | undefined;
   adminActive: boolean;
   setAdminActive: (active: boolean) => void;
   loginWithGoogle: () => void;
@@ -743,6 +896,7 @@ interface IModalRendererProps {
   handlePicSubmit: (data: IPicInput) => void;
   handleBioSubmit: (bioText: string) => void;
   handleBrandingSubmit: (branding: IBrandingInput) => void;
+  handlePastGigsSubmit: (config: IPastGigsConfig) => void;
   handleDeletePic: (id: string) => void;
   handleLogout: () => void;
   isAdmin: boolean;
@@ -829,6 +983,19 @@ function getModalContent(props: IModalRendererProps): {
         ),
         isWide: false,
       };
+    case 'managePastGigs':
+      return {
+        modalTitle: 'Manage Past Performances',
+        bodyContent: (
+          <ManagePastGigs
+            gigs={props.gigs}
+            pastGigsConfig={props.pastGigsConfig}
+            onCancel={() => props.setActiveSubModal(null)}
+            onSubmit={props.handlePastGigsSubmit}
+          />
+        ),
+        isWide: true,
+      };
     default:
       return {
         modalTitle: 'Admin Dashboard',
@@ -841,6 +1008,7 @@ function getModalContent(props: IModalRendererProps): {
             onManagePics={() => props.setActiveSubModal('managePics')}
             onEditBio={() => props.setActiveSubModal('editBio')}
             onEditBranding={() => props.setActiveSubModal('editBranding')}
+            onManagePastGigs={() => props.setActiveSubModal('managePastGigs')}
             onLogout={props.handleLogout}
           />
         ),
@@ -858,7 +1026,7 @@ export function AdminPanel({
 }: IAdminPanelProps): React.JSX.Element {
   const { auth, loginWithGoogle, logout } = useContext(AuthContext);
   const {
-    pics, setPics, setGigs, bio, setBio, branding, setBranding,
+    pics, setPics, gigs, setGigs, bio, setBio, branding, setBranding, pastGigsConfig, setPastGigsConfig,
   } = useContext(DataContext);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -971,6 +1139,36 @@ export function AdminPanel({
       });
   };
 
+  const refreshPastGigsConfig = () => {
+    const backendUrl = process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
+    fetch(`${backendUrl}/book?type=pastGigsConfig&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          if (setPastGigsConfig) setPastGigsConfig({ hiddenGigIds: [] });
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        const record = Array.isArray(data) ? data[0] : null;
+        if (record && typeof record.comments === 'string') {
+          try {
+            const parsed = JSON.parse(record.comments);
+            const hiddenGigIds = Array.isArray(parsed?.hiddenGigIds) ? parsed.hiddenGigIds : [];
+            if (setPastGigsConfig) setPastGigsConfig({ hiddenGigIds });
+          } catch {
+            if (setPastGigsConfig) setPastGigsConfig({ hiddenGigIds: [] });
+          }
+        } else if (setPastGigsConfig) {
+          setPastGigsConfig({ hiddenGigIds: [] });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch past gigs config:', err);
+        if (setPastGigsConfig) setPastGigsConfig({ hiddenGigIds: [] });
+      });
+  };
+
   const handleLogout = () => {
     logout();
     setAdminActive(false);
@@ -1009,8 +1207,10 @@ export function AdminPanel({
     editingPic,
     auth,
     pics,
+    gigs,
     bio,
     branding,
+    pastGigsConfig,
     adminActive,
     setAdminActive,
     loginWithGoogle,
@@ -1058,6 +1258,12 @@ export function AdminPanel({
     handleBrandingSubmit: async (brandingData: IBrandingInput) => {
       await updateBranding(brandingData, auth.token, () => {
         refreshBranding();
+        setActiveSubModal(null);
+      });
+    },
+    handlePastGigsSubmit: async (config: IPastGigsConfig) => {
+      await updatePastGigsConfig(config, auth.token, () => {
+        refreshPastGigsConfig();
         setActiveSubModal(null);
       });
     },
