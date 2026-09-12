@@ -43,6 +43,10 @@ export interface IBranding {
   subtitle: string | null;
 }
 
+export interface IPastGigsConfig {
+  hiddenGigIds: string[];
+}
+
 export interface IDataContext {
   pics: Ipic[] | null;
   setPics: (_arg0: Ipic[] | null) => void;
@@ -52,6 +56,8 @@ export interface IDataContext {
   setBio?: (_arg0: string | null) => void;
   branding?: IBranding | null;
   setBranding?: (_arg0: IBranding | null) => void;
+  pastGigsConfig?: IPastGigsConfig | null;
+  setPastGigsConfig?: (_arg0: IPastGigsConfig | null) => void;
 }
 
 export const DataContext = createContext<IDataContext>({
@@ -63,6 +69,8 @@ export const DataContext = createContext<IDataContext>({
   setBio: () => {},
   branding: null,
   setBranding: () => {},
+  pastGigsConfig: null,
+  setPastGigsConfig: () => {},
 });
 
 declare const process: {
@@ -77,6 +85,7 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
   const [bio, setBio] = useState<string | null>(null);
   // null = not loaded yet; { title/subtitle: null } = loaded, no stored value
   const [branding, setBranding] = useState<IBranding | null>(null);
+  const [pastGigsConfig, setPastGigsConfig] = useState<IPastGigsConfig | null>(null);
 
   useEffect(() => {
     const backendUrl =
@@ -148,12 +157,40 @@ export function DataProvider({ children }: { children: React.ReactNode }): React
         setBranding({ title: null, subtitle: null });
       });
 
+    // Past gigs configuration (hidden past gig IDs)
+    fetch(`${backendUrl}/book?type=pastGigsConfig&artist=tim`)
+      .then(res => {
+        if (!res.ok) {
+          setPastGigsConfig({ hiddenGigIds: [] });
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        const record = Array.isArray(data) ? data[0] : null;
+        if (record && typeof record.comments === 'string') {
+          try {
+            const parsed = JSON.parse(record.comments);
+            const hiddenGigIds = Array.isArray(parsed?.hiddenGigIds) ? parsed.hiddenGigIds : [];
+            setPastGigsConfig({ hiddenGigIds });
+          } catch {
+            setPastGigsConfig({ hiddenGigIds: [] });
+          }
+        } else {
+          setPastGigsConfig({ hiddenGigIds: [] });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch past gigs config:', err);
+        setPastGigsConfig({ hiddenGigIds: [] });
+      });
+
     fetchGigs.getGigs(setGigs);
   }, []);
 
   return (
     <DataContext.Provider value={{
-      pics, setPics, gigs, setGigs, bio, setBio, branding, setBranding,
+      pics, setPics, gigs, setGigs, bio, setBio, branding, setBranding, pastGigsConfig, setPastGigsConfig,
     }}
     >
       {children}

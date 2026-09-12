@@ -20,6 +20,7 @@ vi.mock('../../src/lib/adminActions', () => ({
   deletePic: vi.fn((id, token, cb) => cb && cb()),
   updateBio: vi.fn((bio, token, cb) => cb && cb()),
   updateBranding: vi.fn((branding, token, cb) => cb && cb()),
+  updatePastGigsConfig: vi.fn((config, token, cb) => cb && cb()),
 }));
 
 const mockLoginWithGoogle = vi.fn();
@@ -489,6 +490,204 @@ describe('AdminPanel Dashboard component', () => {
       expect(setBranding).toHaveBeenCalledWith({ title: null, subtitle: null });
     });
     vi.unstubAllGlobals();
+  });
+
+  describe('Manage Past Performances sub-modal', () => {
+    const mockPastGigs = [
+      {
+        _id: 'past-1',
+        venue: 'Historic Hall',
+        datetime: '2020-05-10T19:00:00.000Z',
+        city: 'Richmond',
+        usState: 'Virginia',
+      },
+      {
+        _id: 'future-1',
+        venue: 'Next Stage',
+        datetime: '2026-11-20T20:00:00.000Z',
+      },
+    ];
+
+    it('opens Manage Past Performances modal and displays past gigs with their visibility', () => {
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      expect(screen.getByText('Manage Past Performances')).toBeInTheDocument();
+      expect(screen.getByText('Historic Hall')).toBeInTheDocument();
+      expect(screen.queryByText('Next Stage')).not.toBeInTheDocument();
+      expect(screen.getByText('Visible')).toBeInTheDocument();
+    });
+
+    it('toggles visibility and submits updated hidden IDs to updatePastGigsConfig', async () => {
+      const { updatePastGigsConfig } = await import('../../src/lib/adminActions');
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      const hideBtn = screen.getByRole('button', { name: 'Hide Historic Hall' });
+      fireEvent.click(hideBtn);
+
+      expect(screen.getByText('Hidden')).toBeInTheDocument();
+      const showBtn = screen.getByRole('button', { name: 'Show Historic Hall' });
+      expect(showBtn).toBeInTheDocument();
+
+      // Click save
+      fireEvent.click(screen.getByRole('button', { name: 'Save past gigs configuration' }));
+
+      await waitFor(() => {
+        expect(updatePastGigsConfig).toHaveBeenCalledWith(
+          { hiddenGigIds: ['past-1'] },
+          'admin-token',
+          expect.any(Function),
+        );
+      });
+    });
+
+    it('displays empty message when no past performances exist', () => {
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: [{ _id: 'future-only', venue: 'Future Stage', datetime: '2026-12-01T20:00:00.000Z' }],
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      expect(screen.getByText(/No past performances found in the database/i)).toBeInTheDocument();
+    });
+
+    it('cancels managing past gigs and returns to dashboard', () => {
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel past gigs changes' }));
+      expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+    });
+
+    it('disables the hide toggle for a past gig with no stable id (never writes an empty id into hiddenGigIds)', () => {
+      const idlessGig = { venue: 'No ID Venue', datetime: '2020-06-01T19:00:00.000Z' };
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: [...mockPastGigs, idlessGig],
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      expect(screen.getByText('No ID Venue')).toBeInTheDocument();
+      const disabledBtn = screen.getByRole('button', { name: 'Cannot hide No ID Venue (no id)' });
+      expect(disabledBtn).toBeDisabled();
+    });
+
+    it('re-syncs hidden ids once pastGigsConfig arrives after the modal has mounted', async () => {
+      const { rerender } = renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: null,
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      // Config not loaded yet: seeded from an empty working set.
+      expect(screen.getByText('Historic Hall')).toBeInTheDocument();
+      expect(screen.getByText('Visible')).toBeInTheDocument();
+
+      // Config resolves late (REST), already marking Historic Hall hidden.
+      rerender(
+        <AuthContext.Provider value={adminAuthMock}>
+          <DataContext.Provider
+            value={{
+              ...defaultDataMock,
+              gigs: mockPastGigs,
+              pastGigsConfig: { hiddenGigIds: ['past-1'] },
+            } as any}
+          >
+            <AdminPanel adminActive={false} setAdminActive={mockSetAdminActive} />
+          </DataContext.Provider>
+        </AuthContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Hidden')).toBeInTheDocument();
+      });
+    });
+
+    it('does not clobber an in-progress edit when pastGigsConfig changes again after the initial sync', async () => {
+      const { rerender } = renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      // User hides Historic Hall themselves, in the open modal.
+      fireEvent.click(screen.getByRole('button', { name: 'Hide Historic Hall' }));
+      expect(screen.getByText('Hidden')).toBeInTheDocument();
+
+      // pastGigsConfig prop updates again (e.g. an unrelated refresh) with a
+      // different value. The user's in-progress edit must survive.
+      rerender(
+        <AuthContext.Provider value={adminAuthMock}>
+          <DataContext.Provider
+            value={{
+              ...defaultDataMock,
+              gigs: mockPastGigs,
+              pastGigsConfig: { hiddenGigIds: [] },
+            } as any}
+          >
+            <AdminPanel adminActive={false} setAdminActive={mockSetAdminActive} />
+          </DataContext.Provider>
+        </AuthContext.Provider>
+      );
+
+      expect(screen.getByText('Hidden')).toBeInTheDocument();
+    });
+
+    it('refreshes past gigs config after save and handles non-ok response', async () => {
+      const setPastGigsConfig = vi.fn();
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [{ comments: JSON.stringify({ hiddenGigIds: ['past-1'] }) }],
+      }));
+
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+        setPastGigsConfig,
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save past gigs configuration' }));
+
+      await waitFor(() => {
+        expect(setPastGigsConfig).toHaveBeenCalledWith({ hiddenGigIds: ['past-1'] });
+      });
+
+      vi.unstubAllGlobals();
+    });
   });
 
   it('closes modal when backdrop is clicked', () => {
