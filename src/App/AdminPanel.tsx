@@ -3,7 +3,7 @@
  * @description Admin Panel and modals for managing gigs and slideshow pictures.
  */
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../providers/Auth.provider';
 import { DataContext } from '../providers/Data.provider';
 import fetchGigs from '../providers/fetchGigs';
@@ -26,6 +26,7 @@ import {
   sanitizePlainText,
 } from '../lib/sanitizePlainText';
 import { IBranding, IPastGigsConfig, Igig } from '../providers/Data.provider';
+import { getStableGigId, selectPastGigs } from '../lib/pastGigs';
 import './admin.css';
 
 const US_STATES = [
@@ -703,23 +704,24 @@ function ManagePastGigs({
   onCancel,
   onSubmit,
 }: IManagePastGigsProps): React.JSX.Element {
-  const now = new Date();
-  now.setDate(now.getDate() - 1);
-  const boundaryIso = now.toISOString();
-
-  const pastGigs = (gigs || [])
-    .filter(g => typeof g.datetime === 'string' && g.datetime < boundaryIso)
-    .sort((a, b) => {
-      if (a.datetime && b.datetime) {
-        return b.datetime.localeCompare(a.datetime);
-      }
-      return 0;
-    });
+  const pastGigs = selectPastGigs(gigs);
 
   const [hiddenIds, setHiddenIds] = useState<string[]>(
     pastGigsConfig?.hiddenGigIds || []
   );
   const [submitting, setSubmitting] = useState(false);
+
+  // pastGigsConfig can resolve (over REST) after this sub-modal has already
+  // mounted with the useState initializer above. Sync the working set the
+  // first time a real config arrives, but never again afterward, so we
+  // don't clobber edits the user has already made in the open modal.
+  const syncedConfigRef = useRef(pastGigsConfig);
+  useEffect(() => {
+    if (pastGigsConfig != null && syncedConfigRef.current == null) {
+      setHiddenIds(pastGigsConfig.hiddenGigIds || []);
+    }
+    syncedConfigRef.current = pastGigsConfig;
+  }, [pastGigsConfig]);
 
   const toggleGig = (gigId: string) => {
     setHiddenIds(prev =>
@@ -760,11 +762,13 @@ function ManagePastGigs({
         </div>
       ) : (
         <div className="admin-past-gigs-list" data-testid="admin-past-gigs-list">
-          {pastGigs.map(gig => {
-            const gigId = gig._id || String(gig.id || '');
-            const isHidden = hiddenIds.includes(gigId);
+          {pastGigs.map((gig, index) => {
+            const gigId = getStableGigId(gig);
+            const canToggle = gigId !== null;
+            const isHidden = gigId !== null && hiddenIds.includes(gigId);
+            const rowKey = gigId ?? `no-id-${index}`;
             return (
-              <div key={gigId} className="admin-past-gig-row" data-testid={`admin-past-gig-${gigId}`}>
+              <div key={rowKey} className="admin-past-gig-row" data-testid={`admin-past-gig-${gigId ?? 'no-id'}`}>
                 <div className="admin-past-gig-info">
                   <h4 className="admin-past-gig-venue">{gig.venue}</h4>
                   <div className="admin-past-gig-meta">
@@ -781,8 +785,10 @@ function ManagePastGigs({
                   <button
                     type="button"
                     className={`admin-inline-btn ${isHidden ? '' : 'delete'}`}
-                    onClick={() => toggleGig(gigId)}
-                    aria-label={isHidden ? `Show ${gig.venue}` : `Hide ${gig.venue}`}
+                    onClick={() => gigId !== null && toggleGig(gigId)}
+                    disabled={!canToggle}
+                    title={canToggle ? undefined : 'This performance cannot be hidden (no stable id)'}
+                    aria-label={canToggle ? (isHidden ? `Show ${gig.venue}` : `Hide ${gig.venue}`) : `Cannot hide ${gig.venue} (no id)`}
                   >
                     {isHidden ? 'Show' : 'Hide'}
                   </button>

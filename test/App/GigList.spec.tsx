@@ -177,6 +177,91 @@ describe('GigList component tests', () => {
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
   });
 
+  it('does not collapse the whole past section when hiddenGigIds contains a stray empty string (id-less gig)', () => {
+    const gigsWithIdless: Igig[] = [
+      // Mirrors defaultGig from fetchGigs.tsx: no _id, id defaults to 0.
+      { _id: '', id: 0, venue: 'Idless Venue', datetime: '2020-01-01T18:00:00.000Z' },
+      { _id: 'g3', venue: 'Past Venue C', datetime: '2020-02-01T18:00:00.000Z' },
+    ];
+
+    render(
+      <DataContext.Provider
+        value={{
+          pics: null,
+          setPics: () => {},
+          gigs: gigsWithIdless,
+          setGigs: () => {},
+          pastGigsConfig: { hiddenGigIds: [''] },
+        }}
+      >
+        <GigList />
+      </DataContext.Provider>
+    );
+
+    // Neither gig has a stable id that the stray '' entry can match, so the
+    // whole Past Performances section must still render both gigs.
+    expect(screen.getByText('Past Performances')).toBeInTheDocument();
+    expect(screen.getByText('Idless Venue')).toBeInTheDocument();
+    expect(screen.getByText('Past Venue C')).toBeInTheDocument();
+    expect(screen.getAllByTestId('past-gig-item')).toHaveLength(2);
+  });
+
+  it('keeps Previous/Next responsive after the past-gigs list shrinks while paged forward', () => {
+    const manyPastGigs: Igig[] = Array.from({ length: 12 }, (_, i) => ({
+      _id: `p${i + 1}`,
+      venue: `Past ${i + 1}`,
+      datetime: new Date(2020, 0, i + 1).toISOString(),
+    }));
+
+    const { rerender } = render(
+      <DataContext.Provider
+        value={{
+          pics: null,
+          setPics: () => {},
+          gigs: manyPastGigs,
+          setGigs: () => {},
+          pastGigsConfig: { hiddenGigIds: [] },
+        }}
+      >
+        <GigList />
+      </DataContext.Provider>
+    );
+
+    const nextBtn = () => screen.getByRole('button', { name: /Next/i });
+    const prevBtn = () => screen.getByRole('button', { name: /Previous/i });
+
+    fireEvent.click(nextBtn()); // page 1 -> 2
+    fireEvent.click(nextBtn()); // page 2 -> 3
+    expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
+
+    // The list shrinks (e.g. gigs re-arrive over SocketCluster with fewer
+    // entries than pastGigsConfig, fetched separately over REST, expects).
+    const shrunkGigs = manyPastGigs.slice(0, 8);
+    rerender(
+      <DataContext.Provider
+        value={{
+          pics: null,
+          setPics: () => {},
+          gigs: shrunkGigs,
+          setGigs: () => {},
+          pastGigsConfig: { hiddenGigIds: [] },
+        }}
+      >
+        <GigList />
+      </DataContext.Provider>
+    );
+
+    // Rendered page clamps down automatically.
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+
+    // Clicking Previous must move the visible page. Before the fix, the
+    // handler mutated the stale unclamped `pastPage` (3) instead of the
+    // clamped, rendered `currentPastPage` (2), so this first click was a
+    // dead click that left the page on "Page 2 of 2".
+    fireEvent.click(prevBtn());
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+  });
+
   it('renders ticket details correctly for links, html and text', () => {
     render(
       <DataContext.Provider value={{ pics: null, setPics: () => {}, gigs: mockGigs, setGigs: () => {} }}>

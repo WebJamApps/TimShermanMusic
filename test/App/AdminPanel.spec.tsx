@@ -581,6 +581,89 @@ describe('AdminPanel Dashboard component', () => {
       expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
     });
 
+    it('disables the hide toggle for a past gig with no stable id (never writes an empty id into hiddenGigIds)', () => {
+      const idlessGig = { venue: 'No ID Venue', datetime: '2020-06-01T19:00:00.000Z' };
+      renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: [...mockPastGigs, idlessGig],
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      expect(screen.getByText('No ID Venue')).toBeInTheDocument();
+      const disabledBtn = screen.getByRole('button', { name: 'Cannot hide No ID Venue (no id)' });
+      expect(disabledBtn).toBeDisabled();
+    });
+
+    it('re-syncs hidden ids once pastGigsConfig arrives after the modal has mounted', async () => {
+      const { rerender } = renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: null,
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      // Config not loaded yet: seeded from an empty working set.
+      expect(screen.getByText('Historic Hall')).toBeInTheDocument();
+      expect(screen.getByText('Visible')).toBeInTheDocument();
+
+      // Config resolves late (REST), already marking Historic Hall hidden.
+      rerender(
+        <AuthContext.Provider value={adminAuthMock}>
+          <DataContext.Provider
+            value={{
+              ...defaultDataMock,
+              gigs: mockPastGigs,
+              pastGigsConfig: { hiddenGigIds: ['past-1'] },
+            } as any}
+          >
+            <AdminPanel adminActive={false} setAdminActive={mockSetAdminActive} />
+          </DataContext.Provider>
+        </AuthContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Hidden')).toBeInTheDocument();
+      });
+    });
+
+    it('does not clobber an in-progress edit when pastGigsConfig changes again after the initial sync', async () => {
+      const { rerender } = renderAdminPanel(adminAuthMock, {
+        ...defaultDataMock,
+        gigs: mockPastGigs,
+        pastGigsConfig: { hiddenGigIds: [] },
+      } as any);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Open Admin Portal' }));
+      fireEvent.click(screen.getByRole('button', { name: /Past Performances/i }));
+
+      // User hides Historic Hall themselves, in the open modal.
+      fireEvent.click(screen.getByRole('button', { name: 'Hide Historic Hall' }));
+      expect(screen.getByText('Hidden')).toBeInTheDocument();
+
+      // pastGigsConfig prop updates again (e.g. an unrelated refresh) with a
+      // different value. The user's in-progress edit must survive.
+      rerender(
+        <AuthContext.Provider value={adminAuthMock}>
+          <DataContext.Provider
+            value={{
+              ...defaultDataMock,
+              gigs: mockPastGigs,
+              pastGigsConfig: { hiddenGigIds: [] },
+            } as any}
+          >
+            <AdminPanel adminActive={false} setAdminActive={mockSetAdminActive} />
+          </DataContext.Provider>
+        </AuthContext.Provider>
+      );
+
+      expect(screen.getByText('Hidden')).toBeInTheDocument();
+    });
+
     it('refreshes past gigs config after save and handles non-ok response', async () => {
       const setPastGigsConfig = vi.fn();
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({

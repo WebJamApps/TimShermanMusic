@@ -5,6 +5,7 @@
 
 import { useContext, useState } from 'react';
 import { DataContext, Igig } from '../../providers/Data.provider';
+import { getPastGigBoundaryIso, isGigHidden, selectPastGigs } from '../../lib/pastGigs';
 import './gig-list.css';
 
 interface IGigListProps {
@@ -80,10 +81,9 @@ export function GigList({ adminActive, onEditGig, onDeleteGig }: IGigListProps) 
     return gig.city || '';
   };
 
-  // Filter out past gigs (including today)
-  const now = new Date();
-  now.setDate(now.getDate() - 1);
-  const boundaryIso = now.toISOString();
+  // Filter out past gigs (including today), using the shared boundary so the
+  // public list and the admin curation list can never silently desync.
+  const boundaryIso = getPastGigBoundaryIso();
 
   const upcomingGigs = gigs
     ? gigs
@@ -98,23 +98,10 @@ export function GigList({ adminActive, onEditGig, onDeleteGig }: IGigListProps) 
 
   const hiddenIds = new Set(pastGigsConfig?.hiddenGigIds || []);
 
-  // Filter past gigs (most recent first, excluding hidden gigs)
-  const pastGigs = gigs
-    ? gigs
-        .filter(
-          g =>
-            typeof g.datetime === 'string' &&
-            g.datetime < boundaryIso &&
-            !hiddenIds.has(g._id || '') &&
-            !hiddenIds.has(String(g.id || ''))
-        )
-        .sort((a, b) => {
-          if (a.datetime && b.datetime) {
-            return b.datetime.localeCompare(a.datetime);
-          }
-          return 0;
-        })
-    : [];
+  // Past gigs (most recent first), excluding hidden gigs. A gig with no
+  // stable id (see getStableGigId) can never match hiddenIds, so a stray
+  // empty-string entry in hiddenGigIds can never hide the whole section.
+  const pastGigs = selectPastGigs(gigs).filter(g => !isGigHidden(g, hiddenIds));
 
   const totalPastPages = Math.ceil(pastGigs.length / PAST_GIGS_PER_PAGE);
   const currentPastPage = Math.min(pastPage, totalPastPages || 1);
@@ -243,7 +230,7 @@ export function GigList({ adminActive, onEditGig, onDeleteGig }: IGigListProps) 
               <button
                 type="button"
                 className="pagination-btn"
-                onClick={() => setPastPage(prev => Math.max(1, prev - 1))}
+                onClick={() => setPastPage(Math.max(1, currentPastPage - 1))}
                 disabled={currentPastPage === 1}
                 aria-label="Previous page"
               >
@@ -255,7 +242,7 @@ export function GigList({ adminActive, onEditGig, onDeleteGig }: IGigListProps) 
               <button
                 type="button"
                 className="pagination-btn"
-                onClick={() => setPastPage(prev => Math.min(totalPastPages, prev + 1))}
+                onClick={() => setPastPage(Math.min(totalPastPages, currentPastPage + 1))}
                 disabled={currentPastPage === totalPastPages}
                 aria-label="Next page"
               >
