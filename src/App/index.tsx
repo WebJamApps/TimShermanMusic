@@ -10,6 +10,8 @@ import { GigList } from './GigList';
 import { PicSlider } from './PicSlider';
 import { AdminPanel } from './AdminPanel';
 import { BioSection } from './BioSection';
+import { SocialLinks } from './SocialLinks';
+import { VideosSection } from './VideosSection';
 import { deleteGig } from '../lib/adminActions';
 import {
   DEFAULT_PAGE_TITLE,
@@ -52,12 +54,14 @@ export function App() {
       <header className="brand-header">
         <h1 className="brand-logo">{pageTitle}</h1>
         <p className="brand-tagline">{pageSubtitle}</p>
+        <SocialLinks />
       </header>
       <main style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
         <div style={{ width: '100%', maxWidth: '600px' }}>
           <PicSlider />
         </div>
         <BioSection />
+        <VideosSection />
         <GigList
           adminActive={adminActive}
           onEditGig={gig => triggerEditGigRef.current?.(gig)}

@@ -46,7 +46,12 @@ const mockPics: Ipic[] = [
 
 // color-contrast requires real style computation + canvas, neither of which
 // jsdom provides — disable it so the run reflects only rules axe can verify.
-const runAxe = (el: Element) => axe(el, { rules: { 'color-contrast': { enabled: false } } });
+// jsdom also does not support frame window messaging for iframes, so iframes is disabled.
+const runAxe = (el: Element) =>
+  axe(el, {
+    iframes: false,
+    rules: { 'color-contrast': { enabled: false } },
+  });
 
 async function fillValidForm() {
   fireEvent.change(screen.getByLabelText(/Full Name/i), { target: { value: 'John Doe' } });
