@@ -20,6 +20,17 @@ const EXPECTED_SOCIAL_LINKS = [
   },
 ];
 
+const FIXTURE_GIGS = [
+  {
+    _id: 'gig-fixture-1',
+    venue: 'The Spot on Kirk',
+    datetime: '2026-12-15T19:00:00.000Z',
+    location: 'Roanoke, VA',
+    tickets: 'Free',
+    artist: 'tim',
+  },
+];
+
 test.beforeEach(async ({ page }) => {
   // Answers requests to YouTube embed with an empty page
   await page.route('https://www.youtube.com/embed/**', async route => {
@@ -68,6 +79,42 @@ test.beforeEach(async ({ page }) => {
       body: JSON.stringify([]),
     });
   });
+
+  // Intercept WebSocket connections to isolate SocketCluster gig fetching
+  await page.routeWebSocket(/.*/, ws => {
+    ws.onMessage(message => {
+      if (typeof message !== 'string' || !message.startsWith('{')) return;
+      try {
+        const packet = JSON.parse(message);
+        switch (packet.event) {
+          case '#handshake':
+            ws.send(
+              JSON.stringify({
+                rid: packet.cid,
+                data: { id: 'fixture-socket', pingTimeout: 20000, isAuthenticated: false },
+              }),
+            );
+            break;
+          case '#subscribe':
+            ws.send(JSON.stringify({ rid: packet.cid }));
+            break;
+          case 'gigsForArtist':
+          case 'initial message':
+            ws.send(
+              JSON.stringify({
+                event: 'allGigs:tim',
+                data: FIXTURE_GIGS,
+              }),
+            );
+            break;
+          default:
+            break;
+        }
+      } catch {
+        // ignore malformed message
+      }
+    });
+  });
 });
 
 test('videos card and round social buttons device check', async ({ page }, testInfo) => {
@@ -88,6 +135,10 @@ test('videos card and round social buttons device check', async ({ page }, testI
   const videosSection = page.locator('section[data-testid="videos-section"]');
   const videosCard = videosSection.locator('.video-card');
   await expect(videosCard).toBeVisible();
+
+  // Verify gig list rendered in deterministic fixture state (not loading)
+  const gigItem = page.locator('[data-testid="gig-item"]');
+  await expect(gigItem.first()).toBeVisible();
 
   // 1. The three social buttons are visible, each at least 44 by 44 pixels,
   // all with the same top edge (one row), in the order Facebook, Instagram, YouTube,
