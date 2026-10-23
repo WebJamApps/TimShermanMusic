@@ -56,6 +56,15 @@ const mockGigs: Igig[] = [
 ];
 
 describe('GigList component tests', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders loading state when gigs is null', () => {
     render(
       <DataContext.Provider value={{ pics: null, setPics: () => {}, gigs: null, setGigs: () => {} }}>
