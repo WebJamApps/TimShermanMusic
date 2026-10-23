@@ -211,6 +211,53 @@
   line-height: 1.5;
 }
 
+.booking-bot-trap {
+  display: none;
+}
+
+.field-help {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.form-input option {
+  color: var(--color-text-primary);
+  background: var(--color-bg-dark);
+}
+
+.venue-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.venue-suggestions button {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  background: var(--color-bg-dark);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-input-border);
+  cursor: pointer;
+  font: inherit;
+}
+
+.venue-suggestions button:hover,
+.venue-suggestions button:focus-visible,
+.venue-suggestions button[aria-selected="true"] {
+  background: var(--color-gold-dark);
+  color: #000000;
+}
+
+.google-attribution {
+  align-self: flex-end;
+  width: 120px;
+  background: #ffffff;
+  padding: 4px;
+}
+
 /* Date Input specific theme fixes */
 .form-input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.8) sepia(1) saturate(5) hue-rotate(5deg);

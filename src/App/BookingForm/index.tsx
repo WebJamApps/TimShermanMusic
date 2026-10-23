@@ -5,6 +5,7 @@
  */
 
 import { useState, ChangeEvent, FormEvent } from 'react';
+import { VenueAddress } from './VenueAddress';
 import './booking-form.css';
 
 declare const process: {
@@ -15,22 +16,58 @@ declare const process: {
 
 export interface IBookingFormData {
   artist: string;
+  form: string;
+  website: string;
+  formLoadedAt: number;
   name: string;
   email: string;
   phone: string;
   eventDate: string;
+  eventType: string;
+  venuePlaceId: string;
   message: string;
 }
 
-export function BookingForm() {
-  const [formData, setFormData] = useState<IBookingFormData>({
+const eventTypes = [
+  ['brewery-winery', 'Brewery or winery'],
+  ['restaurant-bar', 'Restaurant or bar'],
+  ['wedding', 'Wedding'],
+  ['private-party', 'Private party'],
+  ['festival-fair', 'Festival or fair'],
+  ['church', 'Church event'],
+  ['corporate', 'Corporate event'],
+  ['other', 'Other'],
+] as const;
+
+function emptyForm(): IBookingFormData {
+  return {
     artist: 'tim',
+    form: 'tim-booking',
+    website: '',
+    formLoadedAt: Date.now(),
     name: '',
     email: '',
     phone: '',
     eventDate: '',
+    eventType: '',
+    venuePlaceId: '',
     message: '',
-  });
+  };
+}
+
+function today(): string {
+  const date = new Date();
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+function validEventDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < today()) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function BookingForm() {
+  const [formData, setFormData] = useState<IBookingFormData>(emptyForm);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,17 +81,19 @@ export function BookingForm() {
 
   // Client-side validation function to toggle the submit button and provide feedback
   const isFormInvalid = (): boolean => {
-    const { name, email, phone, eventDate, message } = formData;
+    const { name, email, phone, eventDate, eventType, venuePlaceId, message } = formData;
     if (!name.trim()) return true;
     if (!validateEmail(email)) return true;
     if (!phone.trim()) return true;
-    if (!eventDate) return true;
+    if (!validEventDate(eventDate)) return true;
+    if (eventTypes.every(([value]) => value !== eventType)) return true;
+    if (!venuePlaceId) return true;
     if (!message.trim()) return true;
     return false;
   };
 
   function handleInputChange(
-    evt: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    evt: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { id, value } = evt.target;
     setFormData(prev => ({
@@ -65,7 +104,7 @@ export function BookingForm() {
 
   async function handleSubmit(evt: FormEvent<HTMLFormElement>) {
     evt.preventDefault();
-    if (isFormInvalid()) return;
+    if (isSubmitting || isFormInvalid()) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -85,6 +124,13 @@ export function BookingForm() {
       });
 
       if (!res.ok) {
+        if (res.status === 400) {
+          const body: unknown = await res.json();
+          if (body && typeof body === 'object' && 'message' in body && typeof body.message === 'string') {
+            setSubmitError(body.message);
+            return;
+          }
+        }
         throw new Error(`${res.status} ${res.statusText}`);
       }
 
@@ -100,14 +146,7 @@ export function BookingForm() {
   }
 
   const handleReset = () => {
-    setFormData({
-      artist: 'tim',
-      name: '',
-      email: '',
-      phone: '',
-      eventDate: '',
-      message: '',
-    });
+    setFormData(emptyForm());
     setHasSubmitted(false);
     setSubmitError(null);
   };
@@ -172,6 +211,19 @@ export function BookingForm() {
       )}
 
       <form id="booking-contact-form" onSubmit={handleSubmit} noValidate className="booking-form-element">
+        <div className="booking-bot-trap" aria-hidden="true">
+          <label htmlFor="website">Website</label>
+          <input
+            aria-label="Website"
+            id="website"
+            name="website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={formData.website}
+            onChange={handleInputChange}
+          />
+        </div>
         <div className="form-grid">
           {/* Name Field */}
           <div className="form-group full-width">
@@ -231,7 +283,7 @@ export function BookingForm() {
           </div>
 
           {/* Event Date Field */}
-          <div className="form-group full-width">
+          <div className="form-group">
             <label htmlFor="eventDate" className="form-label">
               Event Date <span className="required-asterisk">*</span>
             </label>
@@ -240,12 +292,40 @@ export function BookingForm() {
               id="eventDate"
               aria-label="Event Date"
               value={formData.eventDate}
+              min={today()}
+              aria-invalid={Boolean(formData.eventDate && !validEventDate(formData.eventDate))}
+              aria-describedby="event-date-help"
               onChange={handleInputChange}
-              className={`form-input ${formData.eventDate ? 'is-valid' : ''}`}
+              className={`form-input ${validEventDate(formData.eventDate) ? 'is-valid' : ''}`}
               required
               disabled={isSubmitting}
             />
+            <span id="event-date-help" className="field-help">Choose today or a future date.</span>
           </div>
+
+          <div className="form-group">
+            <label htmlFor="eventType" className="form-label">
+              Event Type <span className="required-asterisk">*</span>
+            </label>
+            <select
+              aria-label="Event Type"
+              id="eventType"
+              value={formData.eventType}
+              onChange={handleInputChange}
+              className="form-input"
+              required
+              disabled={isSubmitting}
+            >
+              <option value="">Choose an event type</option>
+              {eventTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+
+          <VenueAddress
+            placeId={formData.venuePlaceId}
+            onSelect={venuePlaceId => { setFormData(prev => ({ ...prev, venuePlaceId })); }}
+            disabled={isSubmitting}
+          />
 
           {/* Message Field */}
           <div className="form-group full-width">
@@ -272,7 +352,7 @@ export function BookingForm() {
           </span>
           <button
             type="submit"
-            disabled={isFormInvalid() || isSubmitting}
+            disabled={isSubmitting || isFormInvalid()}
             className={`btn-premium submit-button ${isSubmitting ? 'is-loading' : ''}`}
           >
             {isSubmitting ? (
