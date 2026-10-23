@@ -49,10 +49,26 @@ async function fetchVideoTitle(id: string): Promise<string> {
   }
 }
 
+function createPlayerIframe(): HTMLIFrameElement {
+  const iframe = document.createElement('iframe');
+  iframe.id = 'tim-player';
+  iframe.src = YOUTUBE_PLAYER_URL;
+  iframe.title = 'Tim Sherman on YouTube';
+  iframe.setAttribute(
+    'allow',
+    'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+  );
+  iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('loading', 'lazy');
+  return iframe;
+}
+
 export function VideosSection(): React.JSX.Element {
   const [videos, setVideos] = useState<readonly VideoItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const playerRef = useRef<YouTubePlayerInstance | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -90,8 +106,18 @@ export function VideosSection(): React.JSX.Element {
       if (lateTarget) void buildRow(lateTarget);
     };
 
+    const ensureIframe = (): HTMLElement | null => {
+      let iframe = document.getElementById('tim-player');
+      if (!iframe && frameRef.current) {
+        iframe = createPlayerIframe();
+        frameRef.current.append(iframe);
+      }
+      return iframe;
+    };
+
     const initPlayer = () => {
       if (!isMounted || !window.YT?.Player) return;
+      ensureIframe();
       try {
         playerInstance = new window.YT.Player('tim-player', {
           events: {
@@ -146,6 +172,7 @@ export function VideosSection(): React.JSX.Element {
       } catch {
         // Ignore destroy errors
       }
+      ensureIframe();
     };
   }, []);
 
@@ -153,7 +180,7 @@ export function VideosSection(): React.JSX.Element {
     <section className="bio-section-container" aria-labelledby="videos-title" data-testid="videos-section">
       <div className="bio-card video-card">
         <h2 className="bio-title" id="videos-title">Videos</h2>
-        <div className="video-frame">
+        <div className="video-frame" ref={frameRef}>
           <iframe
             id="tim-player"
             src={YOUTUBE_PLAYER_URL}

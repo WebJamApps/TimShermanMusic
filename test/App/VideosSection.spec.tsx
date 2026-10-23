@@ -3,6 +3,7 @@
  * @description Unit tests for VideosSection component.
  */
 
+import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { VideosSection } from '../../src/App/VideosSection';
@@ -237,5 +238,49 @@ describe('VideosSection', () => {
     unmount();
 
     expect(destroyMock).toHaveBeenCalled();
+  });
+
+  it('handles React.StrictMode remount with preloaded API when destroy removes the iframe', async () => {
+    let playCalls = 0;
+    window.YT = {
+      Player: vi.fn().mockImplementation(function (_elementId, options) {
+        playCalls++;
+        const playerObj = {
+          getPlaylist: vi.fn().mockReturnValue(['vid-1', 'vid-2']),
+          getPlaylistIndex: vi.fn().mockReturnValue(0),
+          playVideoAt: vi.fn(),
+          destroy: vi.fn().mockImplementation(() => {
+            const iframe = document.getElementById('tim-player');
+            iframe?.remove();
+          }),
+        };
+        setTimeout(() => {
+          options.events?.onReady?.({ target: playerObj });
+        }, 0);
+        return playerObj;
+      }),
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ title: 'StrictMode Video' }),
+    }));
+
+    render(
+      <React.StrictMode>
+        <VideosSection />
+      </React.StrictMode>
+    );
+
+    // Verify player iframe exists and was restored after StrictMode unmount/remount
+    const iframe = await screen.findByTitle('Tim Sherman on YouTube');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).toHaveAttribute('id', 'tim-player');
+    expect(iframe).toHaveAttribute('src', YOUTUBE_PLAYER_URL);
+
+    // Verify thumbnail buttons are rendered and row is not hidden
+    const buttons = await screen.findAllByRole('button', { name: /^Play / });
+    expect(buttons).toHaveLength(2);
+    expect(playCalls).toBeGreaterThanOrEqual(2);
   });
 });
