@@ -118,6 +118,9 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('videos card and round social buttons device check', async ({ page }, testInfo) => {
+  // Fix browser clock so time-bounded upcoming gig fixtures never expire into past gigs
+  await page.clock.setFixedTime(new Date('2026-10-23T12:00:00Z'));
+
   await page.goto('/');
 
   // Wait for finite entry animations (logoFadeIn 1s, cardFadeIn 0.8s) to complete
