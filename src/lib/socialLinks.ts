@@ -5,7 +5,7 @@
 
 export const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@timsherman4865';
 export const YOUTUBE_PLAYLIST_ID = 'PLdxKg_26VhE0';
-export const YOUTUBE_PLAYER_URL = 'https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0';
+export const YOUTUBE_PLAYER_URL = 'https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0&enablejsapi=1';
 
 export const FACEBOOK_URL = 'https://www.facebook.com/tim.sherman.1213';
 export const INSTAGRAM_URL = 'https://www.instagram.com/timey_shermaney/';

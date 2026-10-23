@@ -14,7 +14,7 @@ import {
 
 describe('socialLinks constants', () => {
   it('defines the expected player and profile addresses', () => {
-    expect(YOUTUBE_PLAYER_URL).toBe('https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0');
+    expect(YOUTUBE_PLAYER_URL).toBe('https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0&enablejsapi=1');
     expect(FACEBOOK_URL).toBe('https://www.facebook.com/tim.sherman.1213');
     expect(INSTAGRAM_URL).toBe('https://www.instagram.com/timey_shermaney/');
     expect(YOUTUBE_URL).toBe('https://www.youtube.com/@timsherman4865');

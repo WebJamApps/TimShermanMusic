@@ -19,7 +19,7 @@ describe('VideosSection', () => {
     const iframe = screen.getByTitle('Tim Sherman on YouTube');
     expect(iframe).toBeInTheDocument();
     expect(iframe).toHaveAttribute('src', YOUTUBE_PLAYER_URL);
-    expect(iframe).toHaveAttribute('src', 'https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0');
+    expect(iframe).toHaveAttribute('src', 'https://www.youtube.com/embed/videoseries?list=PLdxKg_26VhE0&enablejsapi=1');
     expect(iframe).toHaveAttribute(
       'allow',
       'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
