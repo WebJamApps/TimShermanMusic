@@ -181,4 +181,61 @@ describe('VideosSection', () => {
     const list = document.querySelector('.video-thumbs');
     expect(list).toHaveAttribute('hidden');
   });
+
+  it('initializes player when onYouTubeIframeAPIReady callback fires after mount', async () => {
+    const prevReady = vi.fn();
+    window.onYouTubeIframeAPIReady = prevReady;
+
+    const mockPlayer = {
+      getPlaylist: vi.fn().mockReturnValue(['v-1', 'v-2']),
+      getPlaylistIndex: vi.fn().mockReturnValue(0),
+      playVideoAt: vi.fn(),
+      destroy: vi.fn(),
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ title: 'Ready Video' }),
+    }));
+
+    render(<VideosSection />);
+
+    window.YT = {
+      Player: vi.fn().mockImplementation(function (_elementId, options) {
+        setTimeout(() => {
+          options.events?.onReady?.({ target: mockPlayer });
+        }, 0);
+        return mockPlayer;
+      }),
+    };
+
+    act(() => {
+      window.onYouTubeIframeAPIReady?.();
+    });
+
+    expect(prevReady).toHaveBeenCalled();
+    const buttons = await screen.findAllByRole('button', { name: /^Play / });
+    expect(buttons).toHaveLength(2);
+  });
+
+  it('destroys player instance on unmount', () => {
+    const destroyMock = vi.fn();
+    const mockPlayer = {
+      getPlaylist: vi.fn().mockReturnValue(['v-1', 'v-2']),
+      getPlaylistIndex: vi.fn().mockReturnValue(0),
+      playVideoAt: vi.fn(),
+      destroy: destroyMock,
+    };
+
+    window.YT = {
+      Player: vi.fn().mockImplementation(function () {
+        return mockPlayer;
+      }),
+    };
+
+    const { unmount } = render(<VideosSection />);
+    unmount();
+
+    expect(destroyMock).toHaveBeenCalled();
+  });
 });
