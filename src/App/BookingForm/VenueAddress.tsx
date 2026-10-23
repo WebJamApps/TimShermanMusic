@@ -153,6 +153,8 @@ export function VenueAddress({ placeId, onSelect, disabled }: {
               role="option"
               aria-selected={index === activeIndex}
               disabled={disabled}
+              // Keep focus on the combobox until the selection click completes.
+              onMouseDown={event => { event.preventDefault(); }}
               onClick={() => { void chooseVenue(suggestion); }}
             >
               {suggestion.text.toString()}

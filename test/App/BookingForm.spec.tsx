@@ -192,6 +192,33 @@ describe('BookingForm validation', () => {
 });
 
 describe('Venue address suggestions', () => {
+  it('keeps a mouse selection available when the browser would blur to no related target', async () => {
+    await showForm();
+    await searchVenue();
+    const input = screen.getByLabelText('Venue Address');
+    const option = screen.getByRole('option', { name: address });
+    input.focus();
+    // Model the browser default: uncancelled mousedown blurs before the click.
+    const shouldBlur = fireEvent.mouseDown(option);
+    if (shouldBlur) fireEvent.blur(input, { relatedTarget: null });
+    await act(async () => {
+      fireEvent.mouseUp(option);
+      fireEvent.click(option);
+    });
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue(address);
+    expect(fixture.place.fetchFields).toHaveBeenCalledWith({ fields: ['formattedAddress'] });
+    expect(screen.queryByRole('option', { name: address })).not.toBeInTheDocument();
+  });
+
+  it('closes suggestions when focus leaves without a related target', async () => {
+    await showForm();
+    await searchVenue();
+    fireEvent.blur(screen.getByLabelText('Venue Address'), { relatedTarget: null });
+    expect(screen.queryByRole('option', { name: address })).not.toBeInTheDocument();
+    expect(fixture.place.fetchFields).not.toHaveBeenCalled();
+  });
+
   it('supports keyboard selection and escape', async () => {
     await showForm();
     await searchVenue();
