@@ -19,7 +19,7 @@ const mockGigs = [
   {
     _id: 'g1',
     venue: 'Future Club',
-    datetime: '2026-12-15T19:00:00.000Z',
+    datetime: '2099-12-15T19:00:00.000Z',
     location: 'Arlington, VA',
     tickets: 'https://tickets.com/g1',
   },
