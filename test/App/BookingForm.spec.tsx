@@ -345,14 +345,45 @@ describe('Venue address suggestions', () => {
     expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
-  it.each(['missing address', 'lookup failure'])('rejects a selection with %s', async failure => {
-    if (failure === 'missing address') delete fixture.place.formattedAddress;
-    else vi.mocked(fixture.place.fetchFields).mockRejectedValue(new Error('Unavailable'));
+  it('rejects a selection with missing address', async () => {
+    delete fixture.place.formattedAddress;
     await showForm();
     await searchVenue();
     await act(async () => { fireEvent.click(screen.getByRole('option', { name: address })); });
-    expect(screen.getByRole('status')).toHaveTextContent(/street address|unavailable/);
+    expect(screen.getByRole('status')).toHaveTextContent('Please choose a suggestion with a street address.');
     expect(submitButton()).toBeDisabled();
+  });
+
+  it('switches to typed address and submits venueAddress when selected-place lookup fails', async () => {
+    vi.mocked(fixture.place.fetchFields).mockRejectedValue(new Error('Unavailable'));
+    await showForm();
+
+    change('Full Name', 'Booking Customer');
+    change('Email Address', 'customer@example.com');
+    change('Phone Number', '540-555-0123');
+    change('Event Date', '2026-10-23');
+    change('Event Type', 'wedding');
+    change('Message & Event Details', 'Wedding reception performance');
+    await searchVenue('123 Main Street');
+
+    await act(async () => { fireEvent.click(screen.getByRole('option', { name: address })); });
+
+    expect(screen.getByText("Address suggestions are unavailable. Type the venue's full street address.")).toBeInTheDocument();
+    expect(screen.getByLabelText('Venue Address')).toBeEnabled();
+    expect(screen.getByLabelText('Venue Address')).toHaveValue('123 Main Street');
+    expect(submitButton()).toBeEnabled();
+
+    await submitForm();
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:7000/inquiry', expect.objectContaining({ method: 'POST' }));
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(payload).toEqual({
+      artist: 'tim', form: 'tim-booking', website: '', formLoadedAt: startedAt.getTime(),
+      name: 'Booking Customer', email: 'customer@example.com', phone: '540-555-0123',
+      eventDate: '2026-10-23', eventType: 'wedding', venueAddress: '123 Main Street',
+      message: 'Wedding reception performance',
+    });
+    expect(payload).not.toHaveProperty('venuePlaceId');
+    expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
   it('ignores an old address lookup after the customer edits the field', async () => {

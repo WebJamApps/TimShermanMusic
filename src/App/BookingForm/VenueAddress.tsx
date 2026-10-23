@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent, type
 import { loadPlacesLibrary, type PlacesLibrary, type VenuePrediction } from './places';
 
 const unavailableNote = "Address suggestions are unavailable. Type the venue's full street address.";
-const unavailableMessage = 'Address suggestions are unavailable. Please try again later or email timsherman75@gmail.com to book.';
 
 export function VenueAddress({
   placeId,
@@ -111,7 +110,14 @@ export function VenueAddress({
       setAddress(place.formattedAddress);
       onSelectRef.current(place.id);
     } catch {
-      if (version === selectionVersion.current) setError(unavailableMessage);
+      if (version === selectionVersion.current) {
+        setIsFallback(true);
+        setSuggestions([]);
+        setActiveIndex(-1);
+        setError('');
+        onSelectRef.current('');
+        onAddressChangeRef.current?.(addressRef.current);
+      }
     } finally {
       if (version === selectionVersion.current) setIsLoading(false);
     }
