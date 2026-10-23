@@ -504,7 +504,7 @@ describe('AdminPanel Dashboard component', () => {
       {
         _id: 'future-1',
         venue: 'Next Stage',
-        datetime: '2026-11-20T20:00:00.000Z',
+        datetime: '2099-11-20T20:00:00.000Z',
       },
     ];
 
@@ -557,7 +557,7 @@ describe('AdminPanel Dashboard component', () => {
     it('displays empty message when no past performances exist', () => {
       renderAdminPanel(adminAuthMock, {
         ...defaultDataMock,
-        gigs: [{ _id: 'future-only', venue: 'Future Stage', datetime: '2026-12-01T20:00:00.000Z' }],
+        gigs: [{ _id: 'future-only', venue: 'Future Stage', datetime: '2099-12-01T20:00:00.000Z' }],
         pastGigsConfig: { hiddenGigIds: [] },
       } as any);
 

@@ -33,7 +33,7 @@ const mockGigs: Igig[] = [
   {
     _id: 'g1',
     venue: 'Future Venue A',
-    datetime: '2026-12-15T19:00:00.000Z',
+    datetime: '2099-12-15T19:00:00.000Z',
     location: 'Richmond, VA',
     tickets: 'https://tickets.example.com/g1',
     duration: 3,
@@ -41,7 +41,7 @@ const mockGigs: Igig[] = [
   {
     _id: 'g2',
     venue: 'Future Venue B',
-    datetime: '2026-11-20T20:30:00.000Z',
+    datetime: '2099-11-20T20:30:00.000Z',
     city: 'Alexandria',
     usState: 'Virginia',
     tickets: 'Free',
@@ -98,7 +98,7 @@ describe('GigList component tests', () => {
     expect(screen.getByText('Future Venue A')).toBeInTheDocument();
     expect(screen.getByText('Future Venue B')).toBeInTheDocument();
 
-    // Verify upcoming ordering (Venue B datetime 2026-11-20 is before Venue A 2026-12-15)
+    // Verify upcoming ordering (Venue B datetime 2099-11-20 is before Venue A 2099-12-15)
     const upcomingItems = screen.getAllByTestId('gig-item');
     expect(upcomingItems).toHaveLength(2);
     expect(upcomingItems[0]).toHaveTextContent('Future Venue B');
@@ -292,7 +292,7 @@ describe('GigList component tests', () => {
       {
         _id: 'g4',
         venue: 'No Tickets Venue',
-        datetime: '2026-10-10T18:00:00.000Z',
+        datetime: '2099-10-10T18:00:00.000Z',
       },
     ];
 
@@ -310,7 +310,7 @@ describe('GigList component tests', () => {
       {
         _id: 'g5',
         venue: 'HTML Tickets Venue',
-        datetime: '2026-10-10T18:00:00.000Z',
+        datetime: '2099-10-10T18:00:00.000Z',
         tickets: '<a href="https://myhtml.com">Buy Here</a>',
       },
     ];

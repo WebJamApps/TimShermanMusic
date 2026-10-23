@@ -25,7 +25,7 @@ empty or placeholder values are rejected. Bump the semver `version` in
 - **Summary**: markdown bullet points, one change per bullet — never a run-on paragraph.
 - **Test evidence**: paste the REAL runner output verbatim (the lines showing pass/fail and test counts), inside a ``` fence — never a description like "all tests passed". If the output has scrolled out of view, re-run the test command and paste what it prints.
 - **Test plan**: exact commands and manual steps that exercise the change (start command, route/page, what to click, expected visible result) — a green test suite alone is not a plan.
-- **Attribution**: `--author` names the model actually doing the work. Antigravity/agy sessions are ALWAYS `agy — Gemini 3.5 Flash (Medium)` or `(High)` — never write any other Gemini model name (models misremember their own identity; use this exact string).
+- **Attribution**: `--author` names the model actually doing the work. Antigravity/agy sessions use the exact `displayName` of the model running, as listed in `ALLOWED_AGY_MODELS` in web-jam-tools `hooks/lib/check_agy_model.ts` (for example `agy — Gemini 3.8 Flash (High)`) — never any other model name (models misremember their own identity; copy the exact string).
 
 ## Memory & Security Audits
 - **Snyk Failures & Resolution via `npm audit fix`**: PR checks may report failure on `security/snyk` due to transitive dependency vulnerabilities (such as `brace-expansion` or `postcss`). Running `npm audit fix` updates `package-lock.json` with non-breaking patches to resolve these vulnerabilities. Always run `npm test` and `npm run test:lint` afterwards to verify the test suite remains 100% green before committing and pushing the updated `package-lock.json` to the PR branch.
