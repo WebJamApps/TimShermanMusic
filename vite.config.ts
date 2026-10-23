@@ -39,8 +39,8 @@ export default defineConfig(async ({ mode }) => {
   // `vitest/config` is a devDependency — import it lazily so a production
   // build (npm install --omit=dev) never tries to resolve it.
   const testExclude = isTest
-    ? [...(await import('vitest/config')).configDefaults.exclude]
-    : [];
+    ? [...(await import('vitest/config')).configDefaults.exclude, 'test/e2e/**']
+    : ['test/e2e/**'];
   return {
     define: {
       global: 'globalThis',
