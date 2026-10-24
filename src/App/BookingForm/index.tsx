@@ -24,7 +24,8 @@ export interface IBookingFormData {
   phone: string;
   eventDate: string;
   eventType: string;
-  venuePlaceId: string;
+  venuePlaceId?: string;
+  venueAddress?: string;
   message: string;
 }
 
@@ -51,6 +52,7 @@ function emptyForm(): IBookingFormData {
     eventDate: '',
     eventType: '',
     venuePlaceId: '',
+    venueAddress: '',
     message: '',
   };
 }
@@ -81,13 +83,13 @@ export function BookingForm() {
 
   // Client-side validation function to toggle the submit button and provide feedback
   const isFormInvalid = (): boolean => {
-    const { name, email, phone, eventDate, eventType, venuePlaceId, message } = formData;
+    const { name, email, phone, eventDate, eventType, venuePlaceId, venueAddress, message } = formData;
     if (!name.trim()) return true;
     if (!validateEmail(email)) return true;
     if (!phone.trim()) return true;
     if (!validEventDate(eventDate)) return true;
     if (eventTypes.every(([value]) => value !== eventType)) return true;
-    if (!venuePlaceId) return true;
+    if (!venuePlaceId && !venueAddress?.trim()) return true;
     if (!message.trim()) return true;
     return false;
   };
@@ -115,12 +117,19 @@ export function BookingForm() {
       process.env.BackendUrl || (import.meta.env.DEV ? 'http://localhost:7000' : '');
 
     try {
+      const payload: IBookingFormData = { ...formData };
+      if (payload.venuePlaceId) {
+        delete payload.venueAddress;
+      } else if (payload.venueAddress) {
+        delete payload.venuePlaceId;
+      }
+
       const res = await fetch(`${backendUrl}/inquiry`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -322,8 +331,22 @@ export function BookingForm() {
           </div>
 
           <VenueAddress
-            placeId={formData.venuePlaceId}
-            onSelect={venuePlaceId => { setFormData(prev => ({ ...prev, venuePlaceId })); }}
+            placeId={formData.venuePlaceId ?? ''}
+            venueAddress={formData.venueAddress ?? ''}
+            onSelect={venuePlaceId => {
+              setFormData(prev => ({
+                ...prev,
+                venuePlaceId,
+                venueAddress: '',
+              }));
+            }}
+            onAddressChange={venueAddress => {
+              setFormData(prev => ({
+                ...prev,
+                venueAddress,
+                venuePlaceId: '',
+              }));
+            }}
             disabled={isSubmitting}
           />
 

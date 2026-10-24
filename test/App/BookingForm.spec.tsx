@@ -260,36 +260,130 @@ describe('Venue address suggestions', () => {
     expect(submitButton()).toBeDisabled();
   });
 
-  it('provides a booking email when the artist key is missing', async () => {
+  it('switches to typed address and submits venueAddress when the browser key is missing', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_BROWSER_KEY', '');
     await showForm();
     expect(loadPlacesLibrary).not.toHaveBeenCalled();
-    expect(screen.getByText(/Address suggestions are unavailable/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Venue Address')).toBeDisabled();
+    expect(screen.getByText("Address suggestions are unavailable. Type the venue's full street address.")).toBeInTheDocument();
+    expect(screen.getByLabelText('Venue Address')).toBeEnabled();
+    expect(submitButton()).toBeDisabled();
+
+    change('Full Name', 'Booking Customer');
+    change('Email Address', 'customer@example.com');
+    change('Phone Number', '540-555-0123');
+    change('Event Date', '2026-10-23');
+    change('Event Type', 'brewery-winery');
+    change('Message & Event Details', 'Can Tim play our fall festival?');
+    change('Venue Address', '123 Main Street, Salem, VA');
+
+    expect(submitButton()).toBeEnabled();
+    await submitForm();
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:7000/inquiry', expect.objectContaining({ method: 'POST' }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      artist: 'tim', form: 'tim-booking', website: '', formLoadedAt: startedAt.getTime(),
+      name: 'Booking Customer', email: 'customer@example.com', phone: '540-555-0123',
+      eventDate: '2026-10-23', eventType: 'brewery-winery', venueAddress: '123 Main Street, Salem, VA',
+      message: 'Can Tim play our fall festival?',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('venuePlaceId');
+    expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
-  it('handles script-loading failure', async () => {
+  it('switches to typed address and submits venueAddress when script loading fails', async () => {
     vi.mocked(loadPlacesLibrary).mockRejectedValue(new Error('Unavailable'));
     await showForm();
-    expect(screen.getByText(/Address suggestions are unavailable/)).toBeInTheDocument();
+    expect(screen.getByText("Address suggestions are unavailable. Type the venue's full street address.")).toBeInTheDocument();
+    expect(screen.getByLabelText('Venue Address')).toBeEnabled();
     expect(submitButton()).toBeDisabled();
+
+    change('Full Name', 'Booking Customer');
+    change('Email Address', 'customer@example.com');
+    change('Phone Number', '540-555-0123');
+    change('Event Date', '2026-10-23');
+    change('Event Type', 'restaurant-bar');
+    change('Message & Event Details', 'Private acoustic set inquiry');
+    change('Venue Address', '456 Oak Avenue, Roanoke, VA');
+
+    expect(submitButton()).toBeEnabled();
+    await submitForm();
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:7000/inquiry', expect.objectContaining({ method: 'POST' }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      artist: 'tim', form: 'tim-booking', website: '', formLoadedAt: startedAt.getTime(),
+      name: 'Booking Customer', email: 'customer@example.com', phone: '540-555-0123',
+      eventDate: '2026-10-23', eventType: 'restaurant-bar', venueAddress: '456 Oak Avenue, Roanoke, VA',
+      message: 'Private acoustic set inquiry',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('venuePlaceId');
+    expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
-  it('handles autocomplete request failure', async () => {
+  it('switches to typed address and submits venueAddress when autocomplete request fails', async () => {
     getSuggestions.mockRejectedValue(new Error('Unavailable'));
     await showForm();
-    await searchVenue();
-    expect(screen.getByText(/Address suggestions are unavailable/)).toBeInTheDocument();
+
+    change('Full Name', 'Booking Customer');
+    change('Email Address', 'customer@example.com');
+    change('Phone Number', '540-555-0123');
+    change('Event Date', '2026-10-23');
+    change('Event Type', 'wedding');
+    change('Message & Event Details', 'Wedding reception performance');
+    await searchVenue('789 Pine Street');
+
+    expect(screen.getByText("Address suggestions are unavailable. Type the venue's full street address.")).toBeInTheDocument();
+    expect(screen.getByLabelText('Venue Address')).toBeEnabled();
+    expect(submitButton()).toBeEnabled();
+
+    await submitForm();
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:7000/inquiry', expect.objectContaining({ method: 'POST' }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      artist: 'tim', form: 'tim-booking', website: '', formLoadedAt: startedAt.getTime(),
+      name: 'Booking Customer', email: 'customer@example.com', phone: '540-555-0123',
+      eventDate: '2026-10-23', eventType: 'wedding', venueAddress: '789 Pine Street',
+      message: 'Wedding reception performance',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('venuePlaceId');
+    expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
-  it.each(['missing address', 'lookup failure'])('rejects a selection with %s', async failure => {
-    if (failure === 'missing address') delete fixture.place.formattedAddress;
-    else vi.mocked(fixture.place.fetchFields).mockRejectedValue(new Error('Unavailable'));
+  it('rejects a selection with missing address', async () => {
+    delete fixture.place.formattedAddress;
     await showForm();
     await searchVenue();
     await act(async () => { fireEvent.click(screen.getByRole('option', { name: address })); });
-    expect(screen.getByRole('status')).toHaveTextContent(/street address|unavailable/);
+    expect(screen.getByRole('status')).toHaveTextContent('Please choose a suggestion with a street address.');
     expect(submitButton()).toBeDisabled();
+  });
+
+  it('switches to typed address and submits venueAddress when selected-place lookup fails', async () => {
+    vi.mocked(fixture.place.fetchFields).mockRejectedValue(new Error('Unavailable'));
+    await showForm();
+
+    change('Full Name', 'Booking Customer');
+    change('Email Address', 'customer@example.com');
+    change('Phone Number', '540-555-0123');
+    change('Event Date', '2026-10-23');
+    change('Event Type', 'wedding');
+    change('Message & Event Details', 'Wedding reception performance');
+    await searchVenue('123 Main Street');
+
+    await act(async () => { fireEvent.click(screen.getByRole('option', { name: address })); });
+
+    expect(screen.getByText("Address suggestions are unavailable. Type the venue's full street address.")).toBeInTheDocument();
+    expect(screen.getByLabelText('Venue Address')).toBeEnabled();
+    expect(screen.getByLabelText('Venue Address')).toHaveValue('123 Main Street');
+    expect(submitButton()).toBeEnabled();
+
+    await submitForm();
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:7000/inquiry', expect.objectContaining({ method: 'POST' }));
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(payload).toEqual({
+      artist: 'tim', form: 'tim-booking', website: '', formLoadedAt: startedAt.getTime(),
+      name: 'Booking Customer', email: 'customer@example.com', phone: '540-555-0123',
+      eventDate: '2026-10-23', eventType: 'wedding', venueAddress: '123 Main Street',
+      message: 'Wedding reception performance',
+    });
+    expect(payload).not.toHaveProperty('venuePlaceId');
+    expect(screen.getByText('Inquiry Sent!')).toBeInTheDocument();
   });
 
   it('ignores an old address lookup after the customer edits the field', async () => {
